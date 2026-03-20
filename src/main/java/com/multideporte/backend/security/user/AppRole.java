@@ -1,0 +1,24 @@
+package com.multideporte.backend.security.user;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "app_role")
+@Getter
+@Setter
+public class AppRole {
+
+    @Id
+    private Long id;
+
+    @Column(name = "code", nullable = false)
+    private String code;
+
+    @Column(name = "name", nullable = false)
+    private String name;
+}

@@ -1,0 +1,92 @@
+package com.multideporte.backend.stage.service.impl;
+
+import com.multideporte.backend.common.exception.BusinessException;
+import com.multideporte.backend.common.exception.ResourceNotFoundException;
+import com.multideporte.backend.stage.dto.request.TournamentStageCreateRequest;
+import com.multideporte.backend.stage.dto.request.TournamentStageUpdateRequest;
+import com.multideporte.backend.stage.dto.response.TournamentStageResponse;
+import com.multideporte.backend.stage.entity.TournamentStage;
+import com.multideporte.backend.stage.entity.TournamentStageType;
+import com.multideporte.backend.stage.mapper.TournamentStageMapper;
+import com.multideporte.backend.stage.repository.TournamentStageGroupRepository;
+import com.multideporte.backend.stage.repository.TournamentStageRepository;
+import com.multideporte.backend.stage.repository.TournamentStageSpecifications;
+import com.multideporte.backend.stage.service.TournamentStageService;
+import com.multideporte.backend.stage.validation.TournamentStageValidator;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class TournamentStageServiceImpl implements TournamentStageService {
+
+    private final TournamentStageRepository tournamentStageRepository;
+    private final TournamentStageGroupRepository tournamentStageGroupRepository;
+    private final TournamentStageMapper tournamentStageMapper;
+    private final TournamentStageValidator tournamentStageValidator;
+
+    @Override
+    @Transactional
+    public TournamentStageResponse create(TournamentStageCreateRequest request) {
+        tournamentStageValidator.validateForCreate(
+                request.tournamentId(),
+                request.stageType(),
+                request.sequenceOrder(),
+                request.legs(),
+                request.roundTrip()
+        );
+
+        TournamentStage entity = tournamentStageMapper.toEntity(request);
+        TournamentStage saved = tournamentStageRepository.save(entity);
+        return tournamentStageMapper.toResponse(saved);
+    }
+
+    @Override
+    public TournamentStageResponse getById(Long id) {
+        return tournamentStageMapper.toResponse(findStage(id));
+    }
+
+    @Override
+    public Page<TournamentStageResponse> getAll(Long tournamentId, TournamentStageType stageType, Boolean active, Pageable pageable) {
+        return tournamentStageRepository.findAll(TournamentStageSpecifications.byFilters(tournamentId, stageType, active), pageable)
+                .map(tournamentStageMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public TournamentStageResponse update(Long id, TournamentStageUpdateRequest request) {
+        TournamentStage entity = findStage(id);
+        tournamentStageValidator.validateForUpdate(
+                entity,
+                request.stageType(),
+                request.sequenceOrder(),
+                request.legs(),
+                request.roundTrip()
+        );
+
+        tournamentStageMapper.updateEntity(entity, request);
+        TournamentStage saved = tournamentStageRepository.save(entity);
+        return tournamentStageMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        TournamentStage entity = findStage(id);
+
+        if (tournamentStageGroupRepository.existsByStageId(id)) {
+            throw new BusinessException("No se puede eliminar la etapa porque ya tiene grupos asociados");
+        }
+
+        tournamentStageRepository.delete(entity);
+    }
+
+    private TournamentStage findStage(Long id) {
+        return tournamentStageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TournamentStage no encontrado con id: " + id));
+    }
+}

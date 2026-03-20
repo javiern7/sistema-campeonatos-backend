@@ -1,0 +1,14 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/multisport_db}
+    username: ${DB_USERNAME:multisport_user}
+    password: ${DB_PASSWORD:multisport_pass}
+
+logging:
+  level:
+    com.multideporte.backend: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

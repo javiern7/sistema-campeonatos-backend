@@ -1,0 +1,185 @@
+package com.multideporte.backend.match.validation;
+
+import com.multideporte.backend.common.exception.BusinessException;
+import com.multideporte.backend.match.entity.MatchGame;
+import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.stage.entity.TournamentStage;
+import com.multideporte.backend.stage.repository.TournamentStageRepository;
+import com.multideporte.backend.stagegroup.entity.StageGroup;
+import com.multideporte.backend.stagegroup.repository.StageGroupRepository;
+import com.multideporte.backend.tournament.repository.TournamentRepository;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
+import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public class MatchGameValidator {
+
+    private final TournamentRepository tournamentRepository;
+    private final TournamentStageRepository tournamentStageRepository;
+    private final StageGroupRepository stageGroupRepository;
+    private final TournamentTeamRepository tournamentTeamRepository;
+
+    public void validateForCreate(
+            Long tournamentId,
+            Long stageId,
+            Long groupId,
+            Long homeTournamentTeamId,
+            Long awayTournamentTeamId,
+            MatchGameStatus status,
+            Integer homeScore,
+            Integer awayScore,
+            Long winnerTournamentTeamId
+    ) {
+        validateTournamentExists(tournamentId);
+        validateStageAndGroup(tournamentId, stageId, groupId);
+        TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
+        TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
+        validateTeamsBelongToTournament(tournamentId, home, away);
+        validateScoresAndWinner(homeTournamentTeamId, awayTournamentTeamId, status, homeScore, awayScore, winnerTournamentTeamId);
+    }
+
+    public void validateForUpdate(
+            MatchGame current,
+            Long stageId,
+            Long groupId,
+            Long homeTournamentTeamId,
+            Long awayTournamentTeamId,
+            MatchGameStatus status,
+            Integer homeScore,
+            Integer awayScore,
+            Long winnerTournamentTeamId
+    ) {
+        validateTournamentExists(current.getTournamentId());
+        validateStageAndGroup(current.getTournamentId(), stageId, groupId);
+        TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
+        TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
+        validateTeamsBelongToTournament(current.getTournamentId(), home, away);
+        validateScoresAndWinner(homeTournamentTeamId, awayTournamentTeamId, status, homeScore, awayScore, winnerTournamentTeamId);
+    }
+
+    private void validateTournamentExists(Long tournamentId) {
+        if (!tournamentRepository.existsById(tournamentId)) {
+            throw new BusinessException("El tournamentId enviado no existe");
+        }
+    }
+
+    private void validateStageAndGroup(Long tournamentId, Long stageId, Long groupId) {
+        if (stageId != null) {
+            TournamentStage stage = tournamentStageRepository.findById(stageId)
+                    .orElseThrow(() -> new BusinessException("El stageId enviado no existe"));
+
+            if (!stage.getTournamentId().equals(tournamentId)) {
+                throw new BusinessException("El stageId no pertenece al torneo indicado");
+            }
+        }
+
+        if (groupId != null) {
+            if (stageId == null) {
+                throw new BusinessException("groupId requiere un stageId");
+            }
+            StageGroup group = stageGroupRepository.findById(groupId)
+                    .orElseThrow(() -> new BusinessException("El groupId enviado no existe"));
+
+            if (!group.getStageId().equals(stageId)) {
+                throw new BusinessException("El groupId no pertenece al stageId indicado");
+            }
+        }
+    }
+
+    private TournamentTeam loadTournamentTeam(Long tournamentTeamId) {
+        return tournamentTeamRepository.findById(tournamentTeamId)
+                .orElseThrow(() -> new BusinessException("El tournamentTeamId enviado no existe: " + tournamentTeamId));
+    }
+
+    private void validateTeamsBelongToTournament(Long tournamentId, TournamentTeam home, TournamentTeam away) {
+        if (home.getId().equals(away.getId())) {
+            throw new BusinessException("El equipo local y visitante no pueden ser el mismo");
+        }
+
+        if (!home.getTournamentId().equals(tournamentId) || !away.getTournamentId().equals(tournamentId)) {
+            throw new BusinessException("Los equipos del partido deben pertenecer al torneo indicado");
+        }
+    }
+
+    private void validateScoresAndWinner(
+            Long homeTournamentTeamId,
+            Long awayTournamentTeamId,
+            MatchGameStatus status,
+            Integer homeScore,
+            Integer awayScore,
+            Long winnerTournamentTeamId
+    ) {
+        boolean bothScoresNull = homeScore == null && awayScore == null;
+        boolean bothScoresPresent = homeScore != null && awayScore != null;
+
+        if (!bothScoresNull && !bothScoresPresent) {
+            throw new BusinessException("homeScore y awayScore deben enviarse ambos o ninguno");
+        }
+
+        if (homeScore != null && (homeScore < 0 || awayScore < 0)) {
+            throw new BusinessException("Los scores no pueden ser negativos");
+        }
+
+        if (status == MatchGameStatus.PLAYED || status == MatchGameStatus.FORFEIT) {
+            if (!bothScoresPresent) {
+                throw new BusinessException("Un partido PLAYED o FORFEIT requiere scores");
+            }
+        }
+
+        if (winnerTournamentTeamId != null
+                && !winnerTournamentTeamId.equals(homeTournamentTeamId)
+                && !winnerTournamentTeamId.equals(awayTournamentTeamId)) {
+            throw new BusinessException("winnerTournamentTeamId debe ser uno de los participantes");
+        }
+
+        if (status == MatchGameStatus.SCHEDULED && (homeScore != null || winnerTournamentTeamId != null)) {
+            throw new BusinessException("Un partido SCHEDULED no debe tener scores ni ganador");
+        }
+
+        if (status == MatchGameStatus.PLAYED) {
+            validateWinnerConsistency(homeTournamentTeamId, awayTournamentTeamId, homeScore, awayScore, winnerTournamentTeamId);
+        }
+
+        if (status == MatchGameStatus.FORFEIT) {
+            if (winnerTournamentTeamId == null) {
+                throw new BusinessException("Un partido FORFEIT requiere winnerTournamentTeamId");
+            }
+            validateWinnerConsistency(homeTournamentTeamId, awayTournamentTeamId, homeScore, awayScore, winnerTournamentTeamId);
+        }
+
+        if (status == MatchGameStatus.CANCELLED && (homeScore != null || winnerTournamentTeamId != null)) {
+            throw new BusinessException("Un partido CANCELLED no debe tener scores ni ganador");
+        }
+    }
+
+    private void validateWinnerConsistency(
+            Long homeTournamentTeamId,
+            Long awayTournamentTeamId,
+            Integer homeScore,
+            Integer awayScore,
+            Long winnerTournamentTeamId
+    ) {
+        if (homeScore == null || awayScore == null) {
+            return;
+        }
+
+        if (homeScore.equals(awayScore)) {
+            if (winnerTournamentTeamId != null) {
+                throw new BusinessException("Un empate no debe registrar winnerTournamentTeamId");
+            }
+            return;
+        }
+
+        if (winnerTournamentTeamId == null) {
+            return;
+        }
+
+        Long expectedWinner = homeScore > awayScore ? homeTournamentTeamId : awayTournamentTeamId;
+        if (!winnerTournamentTeamId.equals(expectedWinner)) {
+            throw new BusinessException("winnerTournamentTeamId no coincide con el marcador enviado");
+        }
+    }
+}
