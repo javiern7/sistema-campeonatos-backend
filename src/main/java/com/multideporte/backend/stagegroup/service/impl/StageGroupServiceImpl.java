@@ -1,6 +1,8 @@
 package com.multideporte.backend.stagegroup.service.impl;
 
+import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
+import com.multideporte.backend.match.repository.MatchGameRepository;
 import com.multideporte.backend.stagegroup.dto.request.StageGroupCreateRequest;
 import com.multideporte.backend.stagegroup.dto.request.StageGroupUpdateRequest;
 import com.multideporte.backend.stagegroup.dto.response.StageGroupResponse;
@@ -8,6 +10,7 @@ import com.multideporte.backend.stagegroup.entity.StageGroup;
 import com.multideporte.backend.stagegroup.mapper.StageGroupMapper;
 import com.multideporte.backend.stagegroup.repository.StageGroupRepository;
 import com.multideporte.backend.stagegroup.repository.StageGroupSpecifications;
+import com.multideporte.backend.standing.repository.StandingRepository;
 import com.multideporte.backend.stagegroup.service.StageGroupService;
 import com.multideporte.backend.stagegroup.validation.StageGroupValidator;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,8 @@ public class StageGroupServiceImpl implements StageGroupService {
     private final StageGroupRepository stageGroupRepository;
     private final StageGroupMapper stageGroupMapper;
     private final StageGroupValidator stageGroupValidator;
+    private final MatchGameRepository matchGameRepository;
+    private final StandingRepository standingRepository;
 
     @Override
     @Transactional
@@ -64,7 +69,13 @@ public class StageGroupServiceImpl implements StageGroupService {
     @Override
     @Transactional
     public void delete(Long id) {
-        stageGroupRepository.delete(findGroup(id));
+        StageGroup entity = findGroup(id);
+
+        if (matchGameRepository.existsByGroupId(id) || standingRepository.existsByGroupId(id)) {
+            throw new BusinessException("No se puede eliminar el grupo porque ya tiene partidos o standings asociados");
+        }
+
+        stageGroupRepository.delete(entity);
     }
 
     private StageGroup findGroup(Long id) {

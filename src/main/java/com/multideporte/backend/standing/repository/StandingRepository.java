@@ -8,6 +8,12 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface StandingRepository extends JpaRepository<Standing, Long>, JpaSpecificationExecutor<Standing> {
 
+    boolean existsByStageId(Long stageId);
+
+    boolean existsByGroupId(Long groupId);
+
+    boolean existsByTournamentTeamId(Long tournamentTeamId);
+
     Optional<Standing> findByTournamentIdAndStageIdAndGroupIdAndTournamentTeamId(
             Long tournamentId,
             Long stageId,

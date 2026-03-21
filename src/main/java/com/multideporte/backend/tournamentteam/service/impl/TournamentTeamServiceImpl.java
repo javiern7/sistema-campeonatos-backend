@@ -2,6 +2,8 @@ package com.multideporte.backend.tournamentteam.service.impl;
 
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
+import com.multideporte.backend.match.repository.MatchGameRepository;
+import com.multideporte.backend.standing.repository.StandingRepository;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamCreateRequest;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamUpdateRequest;
 import com.multideporte.backend.tournamentteam.dto.response.TournamentTeamResponse;
@@ -29,6 +31,8 @@ public class TournamentTeamServiceImpl implements TournamentTeamService {
     private final TournamentTeamRosterRepository tournamentTeamRosterRepository;
     private final TournamentTeamMapper tournamentTeamMapper;
     private final TournamentTeamValidator tournamentTeamValidator;
+    private final MatchGameRepository matchGameRepository;
+    private final StandingRepository standingRepository;
 
     @Override
     @Transactional
@@ -90,6 +94,11 @@ public class TournamentTeamServiceImpl implements TournamentTeamService {
 
         if (tournamentTeamRosterRepository.existsByTournamentTeamId(id)) {
             throw new BusinessException("No se puede eliminar la inscripcion porque ya tiene jugadores en roster");
+        }
+
+        if (matchGameRepository.existsByHomeTournamentTeamIdOrAwayTournamentTeamIdOrWinnerTournamentTeamId(id, id, id)
+                || standingRepository.existsByTournamentTeamId(id)) {
+            throw new BusinessException("No se puede eliminar la inscripcion porque ya tiene partidos o standings asociados");
         }
 
         tournamentTeamRepository.delete(entity);

@@ -51,7 +51,7 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 0
         );
 
-        mockMvc.perform(post("/tournaments")
+        mockMvc.perform(post("/api/tournaments")
                         .with(httpBasic("devadmin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -64,7 +64,7 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
 
     @Test
     void shouldListSeededSports() throws Exception {
-        mockMvc.perform(get("/sports")
+        mockMvc.perform(get("/api/sports")
                         .with(httpBasic("devadmin", "admin123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))

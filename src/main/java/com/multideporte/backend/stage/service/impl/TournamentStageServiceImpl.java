@@ -2,6 +2,7 @@ package com.multideporte.backend.stage.service.impl;
 
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
+import com.multideporte.backend.match.repository.MatchGameRepository;
 import com.multideporte.backend.stage.dto.request.TournamentStageCreateRequest;
 import com.multideporte.backend.stage.dto.request.TournamentStageUpdateRequest;
 import com.multideporte.backend.stage.dto.response.TournamentStageResponse;
@@ -11,6 +12,7 @@ import com.multideporte.backend.stage.mapper.TournamentStageMapper;
 import com.multideporte.backend.stage.repository.TournamentStageGroupRepository;
 import com.multideporte.backend.stage.repository.TournamentStageRepository;
 import com.multideporte.backend.stage.repository.TournamentStageSpecifications;
+import com.multideporte.backend.standing.repository.StandingRepository;
 import com.multideporte.backend.stage.service.TournamentStageService;
 import com.multideporte.backend.stage.validation.TournamentStageValidator;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,8 @@ public class TournamentStageServiceImpl implements TournamentStageService {
     private final TournamentStageGroupRepository tournamentStageGroupRepository;
     private final TournamentStageMapper tournamentStageMapper;
     private final TournamentStageValidator tournamentStageValidator;
+    private final MatchGameRepository matchGameRepository;
+    private final StandingRepository standingRepository;
 
     @Override
     @Transactional
@@ -80,6 +84,10 @@ public class TournamentStageServiceImpl implements TournamentStageService {
 
         if (tournamentStageGroupRepository.existsByStageId(id)) {
             throw new BusinessException("No se puede eliminar la etapa porque ya tiene grupos asociados");
+        }
+
+        if (matchGameRepository.existsByStageId(id) || standingRepository.existsByStageId(id)) {
+            throw new BusinessException("No se puede eliminar la etapa porque ya tiene partidos o standings asociados");
         }
 
         tournamentStageRepository.delete(entity);

@@ -3,6 +3,7 @@ package com.multideporte.backend.match.validation;
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.match.entity.MatchGame;
 import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.match.repository.MatchGameRepository;
 import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stage.repository.TournamentStageRepository;
 import com.multideporte.backend.stagegroup.entity.StageGroup;
@@ -21,11 +22,14 @@ public class MatchGameValidator {
     private final TournamentStageRepository tournamentStageRepository;
     private final StageGroupRepository stageGroupRepository;
     private final TournamentTeamRepository tournamentTeamRepository;
+    private final MatchGameRepository matchGameRepository;
 
     public void validateForCreate(
             Long tournamentId,
             Long stageId,
             Long groupId,
+            Integer roundNumber,
+            Integer matchdayNumber,
             Long homeTournamentTeamId,
             Long awayTournamentTeamId,
             MatchGameStatus status,
@@ -38,6 +42,7 @@ public class MatchGameValidator {
         TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
         TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
         validateTeamsBelongToTournament(tournamentId, home, away);
+        validateDuplicateMatch(null, tournamentId, stageId, groupId, roundNumber, matchdayNumber, homeTournamentTeamId, awayTournamentTeamId);
         validateScoresAndWinner(homeTournamentTeamId, awayTournamentTeamId, status, homeScore, awayScore, winnerTournamentTeamId);
     }
 
@@ -45,6 +50,8 @@ public class MatchGameValidator {
             MatchGame current,
             Long stageId,
             Long groupId,
+            Integer roundNumber,
+            Integer matchdayNumber,
             Long homeTournamentTeamId,
             Long awayTournamentTeamId,
             MatchGameStatus status,
@@ -57,7 +64,53 @@ public class MatchGameValidator {
         TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
         TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
         validateTeamsBelongToTournament(current.getTournamentId(), home, away);
+        validateDuplicateMatch(
+                current.getId(),
+                current.getTournamentId(),
+                stageId,
+                groupId,
+                roundNumber,
+                matchdayNumber,
+                homeTournamentTeamId,
+                awayTournamentTeamId
+        );
         validateScoresAndWinner(homeTournamentTeamId, awayTournamentTeamId, status, homeScore, awayScore, winnerTournamentTeamId);
+    }
+
+    private void validateDuplicateMatch(
+            Long currentId,
+            Long tournamentId,
+            Long stageId,
+            Long groupId,
+            Integer roundNumber,
+            Integer matchdayNumber,
+            Long homeTournamentTeamId,
+            Long awayTournamentTeamId
+    ) {
+        boolean exists = currentId == null
+                ? matchGameRepository.existsByTournamentIdAndStageIdAndGroupIdAndRoundNumberAndMatchdayNumberAndHomeTournamentTeamIdAndAwayTournamentTeamId(
+                        tournamentId,
+                        stageId,
+                        groupId,
+                        roundNumber,
+                        matchdayNumber,
+                        homeTournamentTeamId,
+                        awayTournamentTeamId
+                )
+                : matchGameRepository.existsByTournamentIdAndStageIdAndGroupIdAndRoundNumberAndMatchdayNumberAndHomeTournamentTeamIdAndAwayTournamentTeamIdAndIdNot(
+                        tournamentId,
+                        stageId,
+                        groupId,
+                        roundNumber,
+                        matchdayNumber,
+                        homeTournamentTeamId,
+                        awayTournamentTeamId,
+                        currentId
+                );
+
+        if (exists) {
+            throw new BusinessException("Ya existe un partido con el mismo cruce, roundNumber y matchdayNumber en ese alcance");
+        }
     }
 
     private void validateTournamentExists(Long tournamentId) {
