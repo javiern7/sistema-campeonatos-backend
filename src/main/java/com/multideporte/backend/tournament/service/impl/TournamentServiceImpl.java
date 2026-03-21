@@ -11,7 +11,7 @@ import com.multideporte.backend.tournament.entity.TournamentStatus;
 import com.multideporte.backend.tournament.mapper.TournamentMapper;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournament.repository.TournamentSpecifications;
-import com.multideporte.backend.tournament.repository.TournamentStageRepository;
+import com.multideporte.backend.tournament.repository.TournamentStageRefRepository;
 import com.multideporte.backend.tournament.repository.TournamentTeamRefRepository;
 import com.multideporte.backend.tournament.service.TournamentService;
 import com.multideporte.backend.tournament.validation.TournamentValidator;
@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
-    private final TournamentStageRepository tournamentStageRepository;
+    private final TournamentStageRefRepository tournamentStageRepository;
     private final TournamentTeamRefRepository tournamentTeamRepository;
     private final TournamentMapper tournamentMapper;
     private final TournamentValidator tournamentValidator;

@@ -2,7 +2,7 @@ package com.multideporte.backend.tournament.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TournamentStageRepository extends JpaRepository<TournamentStageRef, Long> {
+public interface TournamentStageRefRepository extends JpaRepository<TournamentStageRef, Long> {
 
     boolean existsByTournamentId(Long tournamentId);
 }
