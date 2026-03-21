@@ -12,7 +12,7 @@ import com.multideporte.backend.tournament.mapper.TournamentMapper;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournament.repository.TournamentSpecifications;
 import com.multideporte.backend.tournament.repository.TournamentStageRepository;
-import com.multideporte.backend.tournament.repository.TournamentTeamRepository;
+import com.multideporte.backend.tournament.repository.TournamentTeamRefRepository;
 import com.multideporte.backend.tournament.service.TournamentService;
 import com.multideporte.backend.tournament.validation.TournamentValidator;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
     private final TournamentStageRepository tournamentStageRepository;
-    private final TournamentTeamRepository tournamentTeamRepository;
+    private final TournamentTeamRefRepository tournamentTeamRepository;
     private final TournamentMapper tournamentMapper;
     private final TournamentValidator tournamentValidator;
     private final CurrentUserService currentUserService;
