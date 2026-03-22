@@ -1,5 +1,94 @@
-target/
-.env
+##################################
+# Sistema Operativo
+##################################
 .DS_Store
-*.log
+Thumbs.db
+
+##################################
+# IntelliJ IDEA
+##################################
 .idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+##################################
+# Eclipse / STS (por si acaso)
+##################################
+.classpath
+.project
+.settings/
+
+##################################
+# Maven
+##################################
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+##################################
+# Logs
+##################################
+*.log
+logs/
+log/
+
+##################################
+# Spring Boot
+##################################
+# Archivos locales (NO subir credenciales)
+application-local.yml
+application-dev.yml
+application-qa.yml
+application-prod.yml
+
+##################################
+# Variables de entorno
+##################################
+.env
+.env.*
+!.env.example
+
+##################################
+# Docker
+##################################
+# Volúmenes locales
+docker-data/
+mysql-data/
+data/
+
+##################################
+# Flyway / DB
+##################################
+# NO ignorar migraciones
+!src/main/resources/db/migration/**
+
+##################################
+# Archivos temporales
+##################################
+tmp/
+temp/
+*.tmp
+*.swp
+
+##################################
+# Node / Frontend (si luego integras)
+##################################
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+##################################
+# VS Code
+##################################
+.vscode/
+
+##################################
+# Archivos de respaldo
+##################################
+*.bak
+*.old
+*.orig
