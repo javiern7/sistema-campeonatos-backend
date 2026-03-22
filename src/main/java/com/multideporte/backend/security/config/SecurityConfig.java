@@ -53,12 +53,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
-                .authenticationProvider(authenticationProvider())
+                .authenticationProvider(daoAuthenticationProvider())
                 .build();
     }
 
-    @Bean
-    DaoAuthenticationProvider authenticationProvider() {
+    private DaoAuthenticationProvider daoAuthenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
