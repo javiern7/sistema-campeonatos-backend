@@ -197,8 +197,8 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
         List<StandingAccumulator> ordered = new ArrayList<>(table.values());
         ordered.sort(Comparator
                 .comparingInt(StandingAccumulator::points).reversed()
-                .thenComparingInt(StandingAccumulator::scoreDiff).reversed()
-                .thenComparingInt(StandingAccumulator::pointsFor).reversed()
+                .thenComparing(Comparator.comparingInt(StandingAccumulator::scoreDiff).reversed())
+                .thenComparing(Comparator.comparingInt(StandingAccumulator::pointsFor).reversed())
                 .thenComparingLong(StandingAccumulator::teamId));
 
         List<Standing> standings = new ArrayList<>();

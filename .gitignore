@@ -25,6 +25,7 @@ out/
 # Maven
 ##################################
 target/
+.m2repo/
 !.mvn/wrapper/maven-wrapper.jar
 
 ##################################

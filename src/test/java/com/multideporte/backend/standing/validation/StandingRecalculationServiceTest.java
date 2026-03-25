@@ -158,4 +158,55 @@ class StandingRecalculationServiceTest {
         assertEquals(10L, saved.get(1).getTournamentTeamId());
         assertEquals(0, saved.get(1).getPoints());
     }
+
+    @Test
+    void shouldOrderStandingsByPointsThenScoreDiffThenPointsFor() {
+        Tournament tournament = new Tournament();
+        tournament.setId(1L);
+        tournament.setPointsWin(3);
+        tournament.setPointsDraw(1);
+        tournament.setPointsLoss(0);
+
+        MatchGame match1 = new MatchGame();
+        match1.setTournamentId(1L);
+        match1.setHomeTournamentTeamId(10L);
+        match1.setAwayTournamentTeamId(11L);
+        match1.setStatus(MatchGameStatus.PLAYED);
+        match1.setHomeScore(3);
+        match1.setAwayScore(0);
+
+        MatchGame match2 = new MatchGame();
+        match2.setTournamentId(1L);
+        match2.setHomeTournamentTeamId(12L);
+        match2.setAwayTournamentTeamId(10L);
+        match2.setStatus(MatchGameStatus.PLAYED);
+        match2.setHomeScore(1);
+        match2.setAwayScore(0);
+
+        MatchGame match3 = new MatchGame();
+        match3.setTournamentId(1L);
+        match3.setHomeTournamentTeamId(11L);
+        match3.setAwayTournamentTeamId(12L);
+        match3.setStatus(MatchGameStatus.PLAYED);
+        match3.setHomeScore(2);
+        match3.setAwayScore(0);
+
+        when(tournamentRepository.existsById(1L)).thenReturn(true);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(matchGameRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNullAndStatusIn(
+                org.mockito.ArgumentMatchers.eq(1L), anyCollection()
+        )).thenReturn(List.of(match1, match2, match3));
+        when(standingRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNull(1L)).thenReturn(List.of());
+        when(standingRepository.saveAll(standingCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        standingRecalculationService.recalculate(new StandingRecalculateRequest(1L, null, null));
+
+        List<com.multideporte.backend.standing.entity.Standing> saved = standingCaptor.getValue();
+        assertEquals(List.of(10L, 11L, 12L), saved.stream()
+                .map(com.multideporte.backend.standing.entity.Standing::getTournamentTeamId)
+                .toList());
+        assertEquals(List.of(1, 2, 3), saved.stream()
+                .map(com.multideporte.backend.standing.entity.Standing::getRankPosition)
+                .toList());
+    }
 }
