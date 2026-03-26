@@ -2,6 +2,7 @@ package com.multideporte.backend.standing.validation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 import com.multideporte.backend.match.entity.MatchGame;
@@ -15,6 +16,7 @@ import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stagegroup.entity.StageGroup;
 import com.multideporte.backend.tournament.entity.Tournament;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
+import com.multideporte.backend.tournament.service.TournamentStageProgressionService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Assertions;
@@ -43,6 +45,9 @@ class StandingRecalculationServiceTest {
 
     @Mock
     private StandingRepository standingRepository;
+
+    @Mock
+    private TournamentStageProgressionService tournamentStageProgressionService;
 
     @InjectMocks
     private StandingRecalculationServiceImpl standingRecalculationService;
@@ -208,5 +213,26 @@ class StandingRecalculationServiceTest {
         assertEquals(List.of(1, 2, 3), saved.stream()
                 .map(com.multideporte.backend.standing.entity.Standing::getRankPosition)
                 .toList());
+    }
+
+    @Test
+    void shouldFailWhenRecalculateTargetsPreparedKnockoutStage() {
+        Tournament tournament = new Tournament();
+        tournament.setId(1L);
+        TournamentStage stage = new TournamentStage();
+        stage.setId(5L);
+        stage.setTournamentId(1L);
+
+        when(tournamentRepository.existsById(1L)).thenReturn(true);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(tournamentStageRepository.findById(5L)).thenReturn(Optional.of(stage));
+        doThrow(new com.multideporte.backend.common.exception.BusinessException(
+                "No se permite recalcular standings para una etapa KNOCKOUT"
+        )).when(tournamentStageProgressionService).assertStandingsCanBeRecalculated(tournament, 5L, null);
+
+        Assertions.assertThrows(
+                com.multideporte.backend.common.exception.BusinessException.class,
+                () -> standingRecalculationService.recalculate(new StandingRecalculateRequest(1L, 5L, null))
+        );
     }
 }

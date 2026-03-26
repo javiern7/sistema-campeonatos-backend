@@ -31,7 +31,7 @@ class TournamentStageValidatorTest {
         when(tournamentStageRepository.existsByTournamentIdAndSequenceOrder(1L, 1)).thenReturn(true);
 
         assertThrows(BusinessException.class, () ->
-                tournamentStageValidator.validateForCreate(1L, TournamentStageType.LEAGUE, 1, 1, false));
+                tournamentStageValidator.validateForCreate(1L, TournamentStageType.LEAGUE, 1, 1, false, true));
     }
 
     @Test
@@ -39,6 +39,15 @@ class TournamentStageValidatorTest {
         when(tournamentRepository.existsById(1L)).thenReturn(true);
 
         assertThrows(BusinessException.class, () ->
-                tournamentStageValidator.validateForCreate(1L, TournamentStageType.KNOCKOUT, 1, 1, true));
+                tournamentStageValidator.validateForCreate(1L, TournamentStageType.KNOCKOUT, 1, 1, true, true));
+    }
+
+    @Test
+    void shouldFailWhenAnotherActiveStageAlreadyExists() {
+        when(tournamentRepository.existsById(1L)).thenReturn(true);
+        when(tournamentStageRepository.existsByTournamentIdAndActiveTrue(1L)).thenReturn(true);
+
+        assertThrows(BusinessException.class, () ->
+                tournamentStageValidator.validateForCreate(1L, TournamentStageType.GROUP_STAGE, 2, 1, false, true));
     }
 }

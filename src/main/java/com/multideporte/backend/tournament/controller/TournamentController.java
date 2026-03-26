@@ -4,6 +4,7 @@ import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
+import com.multideporte.backend.tournament.dto.response.TournamentKnockoutProgressionResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
 import com.multideporte.backend.tournament.service.TournamentService;
@@ -75,6 +76,17 @@ public class TournamentController {
     ) {
         TournamentResponse response = tournamentService.transitionStatus(id, request);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STATUS_CHANGED", "Estado de torneo actualizado correctamente", response));
+    }
+
+    @PostMapping("/{id}/progress-to-knockout")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    public ResponseEntity<ApiResponse<TournamentKnockoutProgressionResponse>> progressToKnockout(@PathVariable Long id) {
+        TournamentKnockoutProgressionResponse response = tournamentService.progressToKnockout(id);
+        return ResponseEntity.ok(ApiResponse.success(
+                "TOURNAMENT_KNOCKOUT_READY",
+                "Progresion a fase eliminatoria realizada correctamente",
+                response
+        ));
     }
 
     @DeleteMapping("/{id}")

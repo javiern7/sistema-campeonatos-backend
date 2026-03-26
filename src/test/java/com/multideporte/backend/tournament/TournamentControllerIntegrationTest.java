@@ -147,6 +147,100 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     @Test
+    void shouldProgressGroupsThenKnockoutTournamentAndOnlyAllowQualifiedTeamsInKnockout() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        long tournamentId = createTournament("Progression " + suffix, "2026-" + suffix, TournamentFormat.GROUPS_THEN_KNOCKOUT);
+        long teamAId = createTeam("Progress Team A " + suffix, "PTA" + suffix);
+        long teamBId = createTeam("Progress Team B " + suffix, "PTB" + suffix);
+        long teamCId = createTeam("Progress Team C " + suffix, "PTC" + suffix);
+        long teamDId = createTeam("Progress Team D " + suffix, "PTD" + suffix);
+
+        transitionTournament(tournamentId, TournamentStatus.OPEN)
+                .andExpect(status().isOk());
+
+        long tournamentTeamAId = createTournamentTeam(tournamentId, teamAId, 1, 1);
+        long tournamentTeamBId = createTournamentTeam(tournamentId, teamBId, 2, 2);
+        long tournamentTeamCId = createTournamentTeam(tournamentId, teamCId, 3, 1);
+        long tournamentTeamDId = createTournamentTeam(tournamentId, teamDId, 4, 2);
+
+        long groupStageId = createStage(tournamentId, "Fase grupos " + suffix, "GROUP_STAGE", 1, true);
+        long knockoutStageId = createStage(tournamentId, "Fase final " + suffix, "KNOCKOUT", 2, false);
+        long groupAId = createGroup(groupStageId, "A" + suffix, "Grupo A " + suffix, 1);
+        long groupBId = createGroup(groupStageId, "B" + suffix, "Grupo B " + suffix, 2);
+
+        transitionTournament(tournamentId, TournamentStatus.IN_PROGRESS)
+                .andExpect(status().isOk());
+
+        createMatch(tournamentId, groupStageId, groupAId, 1, 1, tournamentTeamAId, tournamentTeamBId, MatchGameStatus.PLAYED.name(), 3, 1);
+        createMatch(tournamentId, groupStageId, groupBId, 1, 1, tournamentTeamCId, tournamentTeamDId, MatchGameStatus.PLAYED.name(), 2, 0);
+
+        recalculateStanding(tournamentId, groupStageId, groupAId);
+        recalculateStanding(tournamentId, groupStageId, groupBId);
+
+        progressToKnockout(tournamentId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sourceStageId").value(groupStageId))
+                .andExpect(jsonPath("$.data.targetStageId").value(knockoutStageId))
+                .andExpect(jsonPath("$.data.qualifiedTeamsCount").value(2))
+                .andExpect(jsonPath("$.data.qualifiedTournamentTeamIds[0]").value(tournamentTeamAId))
+                .andExpect(jsonPath("$.data.qualifiedTournamentTeamIds[1]").value(tournamentTeamCId));
+
+        mockMvc.perform(post("/api/matches")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "tournamentId", tournamentId,
+                                "stageId", knockoutStageId,
+                                "roundNumber", 1,
+                                "matchdayNumber", 1,
+                                "homeTournamentTeamId", tournamentTeamAId,
+                                "awayTournamentTeamId", tournamentTeamBId,
+                                "status", MatchGameStatus.SCHEDULED.name()
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Los partidos KNOCKOUT solo pueden involucrar equipos clasificados desde grupos"));
+
+        createMatch(tournamentId, knockoutStageId, null, 1, 1, tournamentTeamAId, tournamentTeamCId, MatchGameStatus.PLAYED.name(), 2, 1);
+
+        transitionTournament(tournamentId, TournamentStatus.FINISHED)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value(TournamentStatus.FINISHED.name()));
+    }
+
+    @Test
+    void shouldRejectProgressingGroupsThenKnockoutWithoutGroupStandings() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        long tournamentId = createTournament("Progression Guard " + suffix, "2026-" + suffix, TournamentFormat.GROUPS_THEN_KNOCKOUT);
+        long teamAId = createTeam("Guard Team A " + suffix, "GTA" + suffix);
+        long teamBId = createTeam("Guard Team B " + suffix, "GTB" + suffix);
+        long teamCId = createTeam("Guard Team C " + suffix, "GTC" + suffix);
+        long teamDId = createTeam("Guard Team D " + suffix, "GTD" + suffix);
+
+        transitionTournament(tournamentId, TournamentStatus.OPEN)
+                .andExpect(status().isOk());
+
+        long tournamentTeamAId = createTournamentTeam(tournamentId, teamAId, 1, 1);
+        long tournamentTeamBId = createTournamentTeam(tournamentId, teamBId, 2, 2);
+        long tournamentTeamCId = createTournamentTeam(tournamentId, teamCId, 3, 1);
+        long tournamentTeamDId = createTournamentTeam(tournamentId, teamDId, 4, 2);
+
+        long groupStageId = createStage(tournamentId, "Grupos guard " + suffix, "GROUP_STAGE", 1, true);
+        createStage(tournamentId, "Knockout guard " + suffix, "KNOCKOUT", 2, false);
+        long groupAId = createGroup(groupStageId, "A" + suffix, "Grupo A " + suffix, 1);
+        long groupBId = createGroup(groupStageId, "B" + suffix, "Grupo B " + suffix, 2);
+
+        transitionTournament(tournamentId, TournamentStatus.IN_PROGRESS)
+                .andExpect(status().isOk());
+
+        createMatch(tournamentId, groupStageId, groupAId, 1, 1, tournamentTeamAId, tournamentTeamBId, MatchGameStatus.PLAYED.name(), 1, 0);
+        createMatch(tournamentId, groupStageId, groupBId, 1, 1, tournamentTeamCId, tournamentTeamDId, MatchGameStatus.PLAYED.name(), 1, 0);
+
+        progressToKnockout(tournamentId)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("No se puede progresar a KNOCKOUT sin standings recalculados por grupo"));
+    }
+
+    @Test
     void shouldFreezeStructureAfterTournamentStartsAndAllowFinishingWhenOperationallyConsistent() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         long tournamentId = createTournament("Finish Flow " + suffix, "2026-" + suffix, TournamentFormat.LEAGUE);
@@ -357,6 +451,10 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createStage(long tournamentId, String name, String stageType) throws Exception {
+        return createStage(tournamentId, name, stageType, 1, true);
+    }
+
+    private long createStage(long tournamentId, String name, String stageType, int sequenceOrder, boolean active) throws Exception {
         return extractId(mockMvc.perform(post("/api/tournament-stages")
                         .with(httpBasic("devadmin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -364,16 +462,20 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                                 "tournamentId", tournamentId,
                                 "name", name,
                                 "stageType", stageType,
-                                "sequenceOrder", 1,
+                                "sequenceOrder", sequenceOrder,
                                 "legs", 1,
                                 "roundTrip", false,
-                                "active", true
+                                "active", active
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn());
     }
 
     private long createGroup(long stageId, String code, String name) throws Exception {
+        return createGroup(stageId, code, name, 1);
+    }
+
+    private long createGroup(long stageId, String code, String name, int sequenceOrder) throws Exception {
         return extractId(mockMvc.perform(post("/api/stage-groups")
                         .with(httpBasic("devadmin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -381,16 +483,28 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                                 "stageId", stageId,
                                 "code", code,
                                 "name", name,
-                                "sequenceOrder", 1
+                                "sequenceOrder", sequenceOrder
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn());
     }
 
+    private void recalculateStanding(long tournamentId, long stageId, long groupId) throws Exception {
+        mockMvc.perform(post("/api/standings/recalculate")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "tournamentId", tournamentId,
+                                "stageId", stageId,
+                                "groupId", groupId
+                        ))))
+                .andExpect(status().isOk());
+    }
+
     private long createMatch(
             long tournamentId,
             long stageId,
-            long groupId,
+            Long groupId,
             int roundNumber,
             int matchdayNumber,
             long homeTournamentTeamId,
@@ -427,6 +541,11 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .with(httpBasic("devadmin", "admin123"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("targetStatus", status.name()))));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions progressToKnockout(long tournamentId) throws Exception {
+        return mockMvc.perform(post("/api/tournaments/{id}/progress-to-knockout", tournamentId)
+                .with(httpBasic("devadmin", "admin123")));
     }
 
     private long extractId(org.springframework.test.web.servlet.MvcResult result) throws Exception {

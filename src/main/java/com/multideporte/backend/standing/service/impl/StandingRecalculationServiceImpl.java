@@ -15,6 +15,7 @@ import com.multideporte.backend.stagegroup.entity.StageGroup;
 import com.multideporte.backend.stagegroup.repository.StageGroupRepository;
 import com.multideporte.backend.tournament.entity.Tournament;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
+import com.multideporte.backend.tournament.service.TournamentStageProgressionService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -35,6 +36,7 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
     private final StageGroupRepository stageGroupRepository;
     private final MatchGameRepository matchGameRepository;
     private final StandingRepository standingRepository;
+    private final TournamentStageProgressionService tournamentStageProgressionService;
 
     @Override
     public StandingRecalculationResponse recalculate(StandingRecalculateRequest request) {
@@ -42,6 +44,11 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
 
         Tournament tournament = tournamentRepository.findById(request.tournamentId())
                 .orElseThrow(() -> new BusinessException("El tournamentId enviado no existe"));
+        tournamentStageProgressionService.assertStandingsCanBeRecalculated(
+                tournament,
+                request.stageId(),
+                request.groupId()
+        );
 
         List<MatchGame> matches = loadMatches(request);
         List<Standing> currentStandings = loadCurrentStandings(request);

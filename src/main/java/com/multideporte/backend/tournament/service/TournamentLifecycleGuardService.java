@@ -13,6 +13,7 @@ import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistration
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -109,6 +110,10 @@ public class TournamentLifecycleGuardService {
         if (matchGameRepository.existsByTournamentIdAndStatus(tournament.getId(), MatchGameStatus.SCHEDULED)) {
             throw new BusinessException("No se puede finalizar un torneo con partidos SCHEDULED pendientes");
         }
+
+        if (tournament.getFormat() == TournamentFormat.GROUPS_THEN_KNOCKOUT) {
+            validateGroupsThenKnockoutFinish(tournament);
+        }
     }
 
     private void validateCancelledTransition(Tournament tournament) {
@@ -120,11 +125,21 @@ public class TournamentLifecycleGuardService {
     private void validateFormatAndStages(TournamentFormat format, List<TournamentStage> stages) {
         boolean hasGroupStage = stages.stream().anyMatch(stage -> stage.getStageType() == TournamentStageType.GROUP_STAGE);
         boolean hasKnockoutStage = stages.stream().anyMatch(stage -> stage.getStageType() == TournamentStageType.KNOCKOUT);
+        List<TournamentStage> activeStages = stages.stream()
+                .filter(stage -> Boolean.TRUE.equals(stage.getActive()))
+                .toList();
+
+        if (activeStages.size() != 1) {
+            throw new BusinessException("El torneo requiere exactamente una etapa activa para iniciar");
+        }
 
         switch (format) {
             case LEAGUE -> {
                 if (hasKnockoutStage) {
                     throw new BusinessException("Un torneo LEAGUE no debe tener etapas KNOCKOUT para iniciar");
+                }
+                if (activeStages.get(0).getStageType() == TournamentStageType.KNOCKOUT) {
+                    throw new BusinessException("Un torneo LEAGUE no puede iniciar con una etapa KNOCKOUT activa");
                 }
             }
             case KNOCKOUT -> {
@@ -134,12 +149,50 @@ public class TournamentLifecycleGuardService {
                 if (hasGroupStage) {
                     throw new BusinessException("Un torneo KNOCKOUT no debe tener etapas GROUP_STAGE para iniciar");
                 }
+                if (activeStages.get(0).getStageType() != TournamentStageType.KNOCKOUT) {
+                    throw new BusinessException("Un torneo KNOCKOUT requiere una etapa KNOCKOUT activa para iniciar");
+                }
             }
             case GROUPS_THEN_KNOCKOUT -> {
                 if (!hasGroupStage || !hasKnockoutStage) {
                     throw new BusinessException("Un torneo GROUPS_THEN_KNOCKOUT requiere fases GROUP_STAGE y KNOCKOUT para iniciar");
                 }
+                if (activeStages.get(0).getStageType() != TournamentStageType.GROUP_STAGE) {
+                    throw new BusinessException("Un torneo GROUPS_THEN_KNOCKOUT debe iniciar con una etapa GROUP_STAGE activa");
+                }
             }
+        }
+    }
+
+    private void validateGroupsThenKnockoutFinish(Tournament tournament) {
+        List<TournamentStage> knockoutStages = tournamentStageRepository.findAllByTournamentIdAndStageTypeOrderBySequenceOrderAsc(
+                tournament.getId(),
+                TournamentStageType.KNOCKOUT
+        );
+        List<Long> knockoutStageIds = knockoutStages.stream()
+                .map(TournamentStage::getId)
+                .collect(Collectors.toList());
+
+        if (knockoutStageIds.isEmpty()) {
+            throw new BusinessException("No se puede finalizar un torneo GROUPS_THEN_KNOCKOUT sin etapas KNOCKOUT");
+        }
+
+        long completedKnockoutMatches = matchGameRepository.countByTournamentIdAndStageIdInAndStatusIn(
+                tournament.getId(),
+                knockoutStageIds,
+                List.of(MatchGameStatus.PLAYED, MatchGameStatus.FORFEIT)
+        );
+        if (completedKnockoutMatches == 0) {
+            throw new BusinessException("No se puede finalizar un torneo GROUPS_THEN_KNOCKOUT sin partidos cerrados en KNOCKOUT");
+        }
+
+        boolean anyActiveGroupStage = tournamentStageRepository.findAllByTournamentIdAndStageTypeOrderBySequenceOrderAsc(
+                        tournament.getId(),
+                        TournamentStageType.GROUP_STAGE
+                ).stream()
+                .anyMatch(stage -> Boolean.TRUE.equals(stage.getActive()));
+        if (anyActiveGroupStage) {
+            throw new BusinessException("No se puede finalizar un torneo GROUPS_THEN_KNOCKOUT mientras la fase de grupos siga activa");
         }
     }
 }

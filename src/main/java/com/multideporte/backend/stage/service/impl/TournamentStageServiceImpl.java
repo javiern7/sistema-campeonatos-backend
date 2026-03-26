@@ -48,7 +48,8 @@ public class TournamentStageServiceImpl implements TournamentStageService {
                 request.stageType(),
                 request.sequenceOrder(),
                 request.legs(),
-                request.roundTrip()
+                request.roundTrip(),
+                request.active()
         );
 
         TournamentStage entity = tournamentStageMapper.toEntity(request);
@@ -77,7 +78,8 @@ public class TournamentStageServiceImpl implements TournamentStageService {
                 request.stageType(),
                 request.sequenceOrder(),
                 request.legs(),
-                request.roundTrip()
+                request.roundTrip(),
+                request.active()
         );
 
         tournamentStageMapper.updateEntity(entity, request);

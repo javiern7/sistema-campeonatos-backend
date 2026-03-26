@@ -20,10 +20,12 @@ public class TournamentStageValidator {
             TournamentStageType stageType,
             Integer sequenceOrder,
             Integer legs,
-            Boolean roundTrip
+            Boolean roundTrip,
+            Boolean active
     ) {
         validateTournamentExists(tournamentId);
         validateStageRules(stageType, legs, roundTrip);
+        validateActiveRulesForCreate(tournamentId, active);
 
         if (tournamentStageRepository.existsByTournamentIdAndSequenceOrder(tournamentId, sequenceOrder)) {
             throw new BusinessException("Ya existe una etapa con ese sequenceOrder en el torneo");
@@ -35,10 +37,12 @@ public class TournamentStageValidator {
             TournamentStageType stageType,
             Integer sequenceOrder,
             Integer legs,
-            Boolean roundTrip
+            Boolean roundTrip,
+            Boolean active
     ) {
         validateTournamentExists(current.getTournamentId());
         validateStageRules(stageType, legs, roundTrip);
+        validateActiveRulesForUpdate(current.getTournamentId(), current.getId(), active);
 
         if (tournamentStageRepository.existsByTournamentIdAndSequenceOrderAndIdNot(
                 current.getTournamentId(),
@@ -66,6 +70,19 @@ public class TournamentStageValidator {
 
         if (stageType == TournamentStageType.LEAGUE && legs > 2) {
             throw new BusinessException("Para MVP, un stage LEAGUE no debe exceder 2 legs");
+        }
+    }
+
+    private void validateActiveRulesForCreate(Long tournamentId, Boolean active) {
+        if (Boolean.TRUE.equals(active) && tournamentStageRepository.existsByTournamentIdAndActiveTrue(tournamentId)) {
+            throw new BusinessException("Solo puede existir una etapa activa por torneo");
+        }
+    }
+
+    private void validateActiveRulesForUpdate(Long tournamentId, Long currentId, Boolean active) {
+        if (Boolean.TRUE.equals(active)
+                && tournamentStageRepository.existsByTournamentIdAndActiveTrueAndIdNot(tournamentId, currentId)) {
+            throw new BusinessException("Solo puede existir una etapa activa por torneo");
         }
     }
 }

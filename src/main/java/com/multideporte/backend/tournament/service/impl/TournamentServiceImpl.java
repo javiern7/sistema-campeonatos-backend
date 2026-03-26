@@ -6,6 +6,7 @@ import com.multideporte.backend.security.user.CurrentUserService;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
+import com.multideporte.backend.tournament.dto.response.TournamentKnockoutProgressionResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.Tournament;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
@@ -16,6 +17,7 @@ import com.multideporte.backend.tournament.repository.TournamentStageRefReposito
 import com.multideporte.backend.tournament.repository.TournamentTeamRefRepository;
 import com.multideporte.backend.tournament.service.TournamentService;
 import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
+import com.multideporte.backend.tournament.service.TournamentStageProgressionService;
 import com.multideporte.backend.tournament.validation.TournamentValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +37,7 @@ public class TournamentServiceImpl implements TournamentService {
     private final TournamentValidator tournamentValidator;
     private final CurrentUserService currentUserService;
     private final TournamentLifecycleGuardService tournamentLifecycleGuardService;
+    private final TournamentStageProgressionService tournamentStageProgressionService;
 
     @Override
     @Transactional
@@ -83,6 +86,13 @@ public class TournamentServiceImpl implements TournamentService {
         entity.setStatus(request.targetStatus());
         Tournament saved = tournamentRepository.save(entity);
         return tournamentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public TournamentKnockoutProgressionResponse progressToKnockout(Long id) {
+        Tournament entity = findTournament(id);
+        return tournamentStageProgressionService.progressGroupsThenKnockout(entity);
     }
 
     @Override
