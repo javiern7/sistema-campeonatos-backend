@@ -241,6 +241,66 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     @Test
+    void shouldGenerateInitialKnockoutBracketUsingDefaultGroupRankSeeding() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        BracketScenario scenario = createKnockoutBracketScenario(suffix, 4, 1, 3, 2);
+
+        generateKnockoutBracket(scenario.tournamentId(), Map.of())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stageId").value(scenario.knockoutStageId()))
+                .andExpect(jsonPath("$.data.seedingStrategy").value("GROUP_RANK"))
+                .andExpect(jsonPath("$.data.roundNumber").value(1))
+                .andExpect(jsonPath("$.data.matchdayNumber").value(1))
+                .andExpect(jsonPath("$.data.generatedMatchesCount").value(2))
+                .andExpect(jsonPath("$.data.generatedMatches[0].homeTournamentTeamId").value(scenario.qualifiedTeamAId()))
+                .andExpect(jsonPath("$.data.generatedMatches[0].awayTournamentTeamId").value(scenario.qualifiedTeamGId()))
+                .andExpect(jsonPath("$.data.generatedMatches[0].homeSeedPosition").value(1))
+                .andExpect(jsonPath("$.data.generatedMatches[0].awaySeedPosition").value(4))
+                .andExpect(jsonPath("$.data.generatedMatches[1].homeTournamentTeamId").value(scenario.qualifiedTeamCId()))
+                .andExpect(jsonPath("$.data.generatedMatches[1].awayTournamentTeamId").value(scenario.qualifiedTeamEId()))
+                .andExpect(jsonPath("$.data.generatedMatches[1].homeSeedPosition").value(2))
+                .andExpect(jsonPath("$.data.generatedMatches[1].awaySeedPosition").value(3));
+    }
+
+    @Test
+    void shouldGenerateInitialKnockoutBracketUsingTournamentSeedStrategy() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        BracketScenario scenario = createKnockoutBracketScenario(suffix, 4, 1, 3, 2);
+
+        generateKnockoutBracket(scenario.tournamentId(), Map.of(
+                "seedingStrategy", "TOURNAMENT_SEED",
+                "roundNumber", 1,
+                "matchdayNumber", 1
+        ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stageId").value(scenario.knockoutStageId()))
+                .andExpect(jsonPath("$.data.seedingStrategy").value("TOURNAMENT_SEED"))
+                .andExpect(jsonPath("$.data.generatedMatchesCount").value(2))
+                .andExpect(jsonPath("$.data.generatedMatches[0].homeTournamentTeamId").value(scenario.qualifiedTeamCId()))
+                .andExpect(jsonPath("$.data.generatedMatches[0].awayTournamentTeamId").value(scenario.qualifiedTeamAId()))
+                .andExpect(jsonPath("$.data.generatedMatches[0].homeSeedPosition").value(1))
+                .andExpect(jsonPath("$.data.generatedMatches[0].awaySeedPosition").value(4))
+                .andExpect(jsonPath("$.data.generatedMatches[1].homeTournamentTeamId").value(scenario.qualifiedTeamGId()))
+                .andExpect(jsonPath("$.data.generatedMatches[1].awayTournamentTeamId").value(scenario.qualifiedTeamEId()))
+                .andExpect(jsonPath("$.data.generatedMatches[1].homeSeedPosition").value(2))
+                .andExpect(jsonPath("$.data.generatedMatches[1].awaySeedPosition").value(3));
+    }
+
+    @Test
+    void shouldRejectRegeneratingKnockoutBracketWhenStageAlreadyHasMatches() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        BracketScenario scenario = createKnockoutBracketScenario(suffix, 1, 2, 3, 4);
+
+        generateKnockoutBracket(scenario.tournamentId(), Map.of())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.generatedMatchesCount").value(2));
+
+        generateKnockoutBracket(scenario.tournamentId(), Map.of())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("No se permite regenerar el bracket KNOCKOUT cuando la etapa ya tiene partidos cargados"));
+    }
+
+    @Test
     void shouldFreezeStructureAfterTournamentStartsAndAllowFinishingWhenOperationallyConsistent() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         long tournamentId = createTournament("Finish Flow " + suffix, "2026-" + suffix, TournamentFormat.LEAGUE);
@@ -548,8 +608,93 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .with(httpBasic("devadmin", "admin123")));
     }
 
+    private org.springframework.test.web.servlet.ResultActions generateKnockoutBracket(
+            long tournamentId,
+            Map<String, Object> payload
+    ) throws Exception {
+        return mockMvc.perform(post("/api/tournaments/{id}/generate-knockout-bracket", tournamentId)
+                .with(httpBasic("devadmin", "admin123"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payload)));
+    }
+
+    private BracketScenario createKnockoutBracketScenario(
+            String suffix,
+            int seedA,
+            int seedC,
+            int seedE,
+            int seedG
+    ) throws Exception {
+        long tournamentId = createTournament("Bracket " + suffix, "2026-" + suffix, TournamentFormat.GROUPS_THEN_KNOCKOUT);
+        transitionTournament(tournamentId, TournamentStatus.OPEN)
+                .andExpect(status().isOk());
+
+        long teamAId = createTeam("Bracket Team A " + suffix, "BTA" + suffix);
+        long teamBId = createTeam("Bracket Team B " + suffix, "BTB" + suffix);
+        long teamCId = createTeam("Bracket Team C " + suffix, "BTC" + suffix);
+        long teamDId = createTeam("Bracket Team D " + suffix, "BTD" + suffix);
+        long teamEId = createTeam("Bracket Team E " + suffix, "BTE" + suffix);
+        long teamFId = createTeam("Bracket Team F " + suffix, "BTF" + suffix);
+        long teamGId = createTeam("Bracket Team G " + suffix, "BTG" + suffix);
+        long teamHId = createTeam("Bracket Team H " + suffix, "BTH" + suffix);
+
+        long tournamentTeamAId = createTournamentTeam(tournamentId, teamAId, seedA, 1);
+        long tournamentTeamBId = createTournamentTeam(tournamentId, teamBId, 91, 2);
+        long tournamentTeamCId = createTournamentTeam(tournamentId, teamCId, seedC, 1);
+        long tournamentTeamDId = createTournamentTeam(tournamentId, teamDId, 92, 2);
+        long tournamentTeamEId = createTournamentTeam(tournamentId, teamEId, seedE, 1);
+        long tournamentTeamFId = createTournamentTeam(tournamentId, teamFId, 93, 2);
+        long tournamentTeamGId = createTournamentTeam(tournamentId, teamGId, seedG, 1);
+        long tournamentTeamHId = createTournamentTeam(tournamentId, teamHId, 94, 2);
+
+        long groupStageId = createStage(tournamentId, "Grupos bracket " + suffix, "GROUP_STAGE", 1, true);
+        long knockoutStageId = createStage(tournamentId, "Knockout bracket " + suffix, "KNOCKOUT", 2, false);
+
+        long groupAId = createGroup(groupStageId, "A" + suffix, "Grupo A " + suffix, 1);
+        long groupBId = createGroup(groupStageId, "B" + suffix, "Grupo B " + suffix, 2);
+        long groupCId = createGroup(groupStageId, "C" + suffix, "Grupo C " + suffix, 3);
+        long groupDId = createGroup(groupStageId, "D" + suffix, "Grupo D " + suffix, 4);
+
+        transitionTournament(tournamentId, TournamentStatus.IN_PROGRESS)
+                .andExpect(status().isOk());
+
+        createMatch(tournamentId, groupStageId, groupAId, 1, 1, tournamentTeamAId, tournamentTeamBId, MatchGameStatus.PLAYED.name(), 1, 0);
+        createMatch(tournamentId, groupStageId, groupBId, 1, 1, tournamentTeamCId, tournamentTeamDId, MatchGameStatus.PLAYED.name(), 1, 0);
+        createMatch(tournamentId, groupStageId, groupCId, 1, 1, tournamentTeamEId, tournamentTeamFId, MatchGameStatus.PLAYED.name(), 1, 0);
+        createMatch(tournamentId, groupStageId, groupDId, 1, 1, tournamentTeamGId, tournamentTeamHId, MatchGameStatus.PLAYED.name(), 1, 0);
+
+        recalculateStanding(tournamentId, groupStageId, groupAId);
+        recalculateStanding(tournamentId, groupStageId, groupBId);
+        recalculateStanding(tournamentId, groupStageId, groupCId);
+        recalculateStanding(tournamentId, groupStageId, groupDId);
+
+        progressToKnockout(tournamentId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetStageId").value(knockoutStageId))
+                .andExpect(jsonPath("$.data.qualifiedTeamsCount").value(4));
+
+        return new BracketScenario(
+                tournamentId,
+                knockoutStageId,
+                tournamentTeamAId,
+                tournamentTeamCId,
+                tournamentTeamEId,
+                tournamentTeamGId
+        );
+    }
+
     private long extractId(org.springframework.test.web.servlet.MvcResult result) throws Exception {
         JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
         return root.path("data").path("id").asLong();
+    }
+
+    private record BracketScenario(
+            long tournamentId,
+            long knockoutStageId,
+            long qualifiedTeamAId,
+            long qualifiedTeamCId,
+            long qualifiedTeamEId,
+            long qualifiedTeamGId
+    ) {
     }
 }

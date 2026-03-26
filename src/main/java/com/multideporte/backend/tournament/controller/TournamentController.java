@@ -1,9 +1,11 @@
 package com.multideporte.backend.tournament.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.tournament.dto.request.TournamentKnockoutBracketGenerateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
+import com.multideporte.backend.tournament.dto.response.TournamentKnockoutBracketResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentKnockoutProgressionResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
@@ -85,6 +87,20 @@ public class TournamentController {
         return ResponseEntity.ok(ApiResponse.success(
                 "TOURNAMENT_KNOCKOUT_READY",
                 "Progresion a fase eliminatoria realizada correctamente",
+                response
+        ));
+    }
+
+    @PostMapping("/{id}/generate-knockout-bracket")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    public ResponseEntity<ApiResponse<TournamentKnockoutBracketResponse>> generateKnockoutBracket(
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) TournamentKnockoutBracketGenerateRequest request
+    ) {
+        TournamentKnockoutBracketResponse response = tournamentService.generateKnockoutBracket(id, request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "TOURNAMENT_KNOCKOUT_BRACKET_GENERATED",
+                "Bracket eliminatorio inicial generado correctamente",
                 response
         ));
     }

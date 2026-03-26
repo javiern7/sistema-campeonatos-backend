@@ -3,9 +3,11 @@ package com.multideporte.backend.tournament.service.impl;
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
 import com.multideporte.backend.security.user.CurrentUserService;
+import com.multideporte.backend.tournament.dto.request.TournamentKnockoutBracketGenerateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
+import com.multideporte.backend.tournament.dto.response.TournamentKnockoutBracketResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentKnockoutProgressionResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.Tournament;
@@ -93,6 +95,13 @@ public class TournamentServiceImpl implements TournamentService {
     public TournamentKnockoutProgressionResponse progressToKnockout(Long id) {
         Tournament entity = findTournament(id);
         return tournamentStageProgressionService.progressGroupsThenKnockout(entity);
+    }
+
+    @Override
+    @Transactional
+    public TournamentKnockoutBracketResponse generateKnockoutBracket(Long id, TournamentKnockoutBracketGenerateRequest request) {
+        Tournament entity = findTournament(id);
+        return tournamentStageProgressionService.generateKnockoutBracket(entity, request);
     }
 
     @Override

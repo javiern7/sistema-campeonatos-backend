@@ -1,5 +1,7 @@
 package com.multideporte.backend.tournament.service;
 
+import com.multideporte.backend.tournament.dto.request.TournamentKnockoutBracketGenerateRequest;
+import com.multideporte.backend.tournament.dto.response.TournamentKnockoutBracketResponse;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
@@ -22,6 +24,8 @@ public interface TournamentService {
     TournamentResponse transitionStatus(Long id, TournamentStatusTransitionRequest request);
 
     TournamentKnockoutProgressionResponse progressToKnockout(Long id);
+
+    TournamentKnockoutBracketResponse generateKnockoutBracket(Long id, TournamentKnockoutBracketGenerateRequest request);
 
     void delete(Long id);
 }
