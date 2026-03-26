@@ -66,8 +66,10 @@ public class TournamentTeamValidator {
     }
 
     private void validateTournamentState(Tournament tournament) {
-        if (tournament.getStatus() == TournamentStatus.CANCELLED || tournament.getStatus() == TournamentStatus.FINISHED) {
-            throw new BusinessException("No se permite modificar inscripciones en un torneo cancelado o finalizado");
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS
+                || tournament.getStatus() == TournamentStatus.CANCELLED
+                || tournament.getStatus() == TournamentStatus.FINISHED) {
+            throw new BusinessException("No se permite modificar inscripciones en un torneo en progreso, cancelado o finalizado");
         }
     }
 

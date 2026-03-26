@@ -1,6 +1,7 @@
 package com.multideporte.backend.tournament.service;
 
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
+import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
@@ -16,6 +17,8 @@ public interface TournamentService {
     Page<TournamentResponse> getAll(String name, Long sportId, TournamentStatus status, Pageable pageable);
 
     TournamentResponse update(Long id, TournamentUpdateRequest request);
+
+    TournamentResponse transitionStatus(Long id, TournamentStatusTransitionRequest request);
 
     void delete(Long id);
 }

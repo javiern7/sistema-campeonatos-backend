@@ -34,11 +34,15 @@ public interface MatchGameRepository extends JpaRepository<MatchGame, Long>, Jpa
 
     boolean existsByGroupId(Long groupId);
 
+    boolean existsByTournamentIdAndStatus(Long tournamentId, MatchGameStatus status);
+
     boolean existsByHomeTournamentTeamIdOrAwayTournamentTeamIdOrWinnerTournamentTeamId(
             Long homeTournamentTeamId,
             Long awayTournamentTeamId,
             Long winnerTournamentTeamId
     );
+
+    long countByTournamentIdAndStatusIn(Long tournamentId, Collection<MatchGameStatus> statuses);
 
     List<MatchGame> findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNullAndStatusIn(
             Long tournamentId,

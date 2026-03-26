@@ -59,6 +59,9 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
         long stageId = createStage(tournamentId, "Fase de Grupos " + suffix);
         long groupId = createGroup(stageId, "a" + suffix, "Grupo " + suffix);
 
+        transitionTournament(tournamentId, "OPEN");
+        transitionTournament(tournamentId, "IN_PROGRESS");
+
         createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamAId, tournamentTeamBId, 3, 0);
         createMatch(tournamentId, stageId, groupId, 1, 2, tournamentTeamCId, tournamentTeamAId, 1, 0);
         createMatch(tournamentId, stageId, groupId, 1, 3, tournamentTeamBId, tournamentTeamCId, 2, 0);
@@ -112,6 +115,9 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
         long stageId = createStage(tournamentId, "Dup Stage " + suffix);
         long groupId = createGroup(stageId, "b" + suffix, "Grupo B " + suffix);
 
+        transitionTournament(tournamentId, "OPEN");
+        transitionTournament(tournamentId, "IN_PROGRESS");
+
         createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamAId, tournamentTeamBId, 2, 1);
 
         mockMvc.perform(post("/api/matches")
@@ -146,6 +152,10 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
         long otherTournamentTeamId = createTournamentTeam(tournamentId, otherTeamId, 2, 2);
         long stageId = createStage(tournamentId, "Guard Stage " + suffix);
         long groupId = createGroup(stageId, "c" + suffix, "Grupo C " + suffix);
+
+        transitionTournament(tournamentId, "OPEN");
+        transitionTournament(tournamentId, "IN_PROGRESS");
+
         createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamId, otherTournamentTeamId, 1, 0);
 
         mockMvc.perform(post("/api/standings/recalculate")
@@ -291,6 +301,14 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn());
+    }
+
+    private void transitionTournament(long tournamentId, String targetStatus) throws Exception {
+        mockMvc.perform(post("/api/tournaments/{id}/status-transition", tournamentId)
+                        .with(httpBasic(USERNAME, PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("targetStatus", targetStatus))))
+                .andExpect(status().isOk());
     }
 
     private long extractId(MvcResult result) throws Exception {

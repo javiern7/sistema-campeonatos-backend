@@ -4,6 +4,7 @@ import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
 import com.multideporte.backend.security.user.CurrentUserService;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
+import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.Tournament;
@@ -14,6 +15,7 @@ import com.multideporte.backend.tournament.repository.TournamentSpecifications;
 import com.multideporte.backend.tournament.repository.TournamentStageRefRepository;
 import com.multideporte.backend.tournament.repository.TournamentTeamRefRepository;
 import com.multideporte.backend.tournament.service.TournamentService;
+import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
 import com.multideporte.backend.tournament.validation.TournamentValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,6 +34,7 @@ public class TournamentServiceImpl implements TournamentService {
     private final TournamentMapper tournamentMapper;
     private final TournamentValidator tournamentValidator;
     private final CurrentUserService currentUserService;
+    private final TournamentLifecycleGuardService tournamentLifecycleGuardService;
 
     @Override
     @Transactional
@@ -62,10 +65,22 @@ public class TournamentServiceImpl implements TournamentService {
     public TournamentResponse update(Long id, TournamentUpdateRequest request) {
         Tournament entity = findTournament(id);
         tournamentValidator.validateForUpdate(entity, request);
+        tournamentLifecycleGuardService.assertTournamentDataCanBeUpdated(entity, request.status());
 
         tournamentMapper.updateEntity(entity, request);
         entity.setSlug(tournamentValidator.buildSlug(request.name(), request.seasonName()));
 
+        Tournament saved = tournamentRepository.save(entity);
+        return tournamentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public TournamentResponse transitionStatus(Long id, TournamentStatusTransitionRequest request) {
+        Tournament entity = findTournament(id);
+        tournamentLifecycleGuardService.assertStatusTransition(entity, request.targetStatus());
+
+        entity.setStatus(request.targetStatus());
         Tournament saved = tournamentRepository.save(entity);
         return tournamentMapper.toResponse(saved);
     }

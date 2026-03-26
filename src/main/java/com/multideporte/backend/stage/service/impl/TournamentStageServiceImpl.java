@@ -14,6 +14,9 @@ import com.multideporte.backend.stage.repository.TournamentStageRepository;
 import com.multideporte.backend.stage.repository.TournamentStageSpecifications;
 import com.multideporte.backend.standing.repository.StandingRepository;
 import com.multideporte.backend.stage.service.TournamentStageService;
+import com.multideporte.backend.tournament.entity.Tournament;
+import com.multideporte.backend.tournament.repository.TournamentRepository;
+import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
 import com.multideporte.backend.stage.validation.TournamentStageValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,10 +35,14 @@ public class TournamentStageServiceImpl implements TournamentStageService {
     private final TournamentStageValidator tournamentStageValidator;
     private final MatchGameRepository matchGameRepository;
     private final StandingRepository standingRepository;
+    private final TournamentRepository tournamentRepository;
+    private final TournamentLifecycleGuardService tournamentLifecycleGuardService;
 
     @Override
     @Transactional
     public TournamentStageResponse create(TournamentStageCreateRequest request) {
+        Tournament tournament = loadTournament(request.tournamentId());
+        tournamentLifecycleGuardService.assertStructureCanBeModified(tournament);
         tournamentStageValidator.validateForCreate(
                 request.tournamentId(),
                 request.stageType(),
@@ -64,6 +71,7 @@ public class TournamentStageServiceImpl implements TournamentStageService {
     @Transactional
     public TournamentStageResponse update(Long id, TournamentStageUpdateRequest request) {
         TournamentStage entity = findStage(id);
+        tournamentLifecycleGuardService.assertStructureCanBeModified(loadTournament(entity.getTournamentId()));
         tournamentStageValidator.validateForUpdate(
                 entity,
                 request.stageType(),
@@ -81,6 +89,7 @@ public class TournamentStageServiceImpl implements TournamentStageService {
     @Transactional
     public void delete(Long id) {
         TournamentStage entity = findStage(id);
+        tournamentLifecycleGuardService.assertStructureCanBeModified(loadTournament(entity.getTournamentId()));
 
         if (tournamentStageGroupRepository.existsByStageId(id)) {
             throw new BusinessException("No se puede eliminar la etapa porque ya tiene grupos asociados");
@@ -96,5 +105,10 @@ public class TournamentStageServiceImpl implements TournamentStageService {
     private TournamentStage findStage(Long id) {
         return tournamentStageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TournamentStage no encontrado con id: " + id));
+    }
+
+    private Tournament loadTournament(Long tournamentId) {
+        return tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament no encontrado con id: " + tournamentId));
     }
 }

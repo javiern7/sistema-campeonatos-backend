@@ -2,6 +2,7 @@ package com.multideporte.backend.tournament.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
+import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
@@ -64,6 +65,16 @@ public class TournamentController {
     ) {
         TournamentResponse response = tournamentService.update(id, request);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_UPDATED", "Torneo actualizado correctamente", response));
+    }
+
+    @PostMapping("/{id}/status-transition")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    public ResponseEntity<ApiResponse<TournamentResponse>> transitionStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody TournamentStatusTransitionRequest request
+    ) {
+        TournamentResponse response = tournamentService.transitionStatus(id, request);
+        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STATUS_CHANGED", "Estado de torneo actualizado correctamente", response));
     }
 
     @DeleteMapping("/{id}")

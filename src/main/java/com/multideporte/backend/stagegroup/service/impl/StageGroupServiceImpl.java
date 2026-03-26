@@ -11,7 +11,12 @@ import com.multideporte.backend.stagegroup.mapper.StageGroupMapper;
 import com.multideporte.backend.stagegroup.repository.StageGroupRepository;
 import com.multideporte.backend.stagegroup.repository.StageGroupSpecifications;
 import com.multideporte.backend.standing.repository.StandingRepository;
+import com.multideporte.backend.stage.entity.TournamentStage;
+import com.multideporte.backend.stage.repository.TournamentStageRepository;
 import com.multideporte.backend.stagegroup.service.StageGroupService;
+import com.multideporte.backend.tournament.entity.Tournament;
+import com.multideporte.backend.tournament.repository.TournamentRepository;
+import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
 import com.multideporte.backend.stagegroup.validation.StageGroupValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,10 +34,15 @@ public class StageGroupServiceImpl implements StageGroupService {
     private final StageGroupValidator stageGroupValidator;
     private final MatchGameRepository matchGameRepository;
     private final StandingRepository standingRepository;
+    private final TournamentStageRepository tournamentStageRepository;
+    private final TournamentRepository tournamentRepository;
+    private final TournamentLifecycleGuardService tournamentLifecycleGuardService;
 
     @Override
     @Transactional
     public StageGroupResponse create(StageGroupCreateRequest request) {
+        TournamentStage stage = loadStage(request.stageId());
+        tournamentLifecycleGuardService.assertStructureCanBeModified(loadTournament(stage.getTournamentId()));
         stageGroupValidator.validateForCreate(request.stageId(), request.code(), request.sequenceOrder());
 
         StageGroup entity = stageGroupMapper.toEntity(request);
@@ -57,6 +67,8 @@ public class StageGroupServiceImpl implements StageGroupService {
     @Transactional
     public StageGroupResponse update(Long id, StageGroupUpdateRequest request) {
         StageGroup entity = findGroup(id);
+        TournamentStage stage = loadStage(entity.getStageId());
+        tournamentLifecycleGuardService.assertStructureCanBeModified(loadTournament(stage.getTournamentId()));
         stageGroupValidator.validateForUpdate(entity, request.code(), request.sequenceOrder());
 
         stageGroupMapper.updateEntity(entity, request);
@@ -70,6 +82,8 @@ public class StageGroupServiceImpl implements StageGroupService {
     @Transactional
     public void delete(Long id) {
         StageGroup entity = findGroup(id);
+        TournamentStage stage = loadStage(entity.getStageId());
+        tournamentLifecycleGuardService.assertStructureCanBeModified(loadTournament(stage.getTournamentId()));
 
         if (matchGameRepository.existsByGroupId(id) || standingRepository.existsByGroupId(id)) {
             throw new BusinessException("No se puede eliminar el grupo porque ya tiene partidos o standings asociados");
@@ -81,5 +95,15 @@ public class StageGroupServiceImpl implements StageGroupService {
     private StageGroup findGroup(Long id) {
         return stageGroupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("StageGroup no encontrado con id: " + id));
+    }
+
+    private TournamentStage loadStage(Long stageId) {
+        return tournamentStageRepository.findById(stageId)
+                .orElseThrow(() -> new ResourceNotFoundException("TournamentStage no encontrado con id: " + stageId));
+    }
+
+    private Tournament loadTournament(Long tournamentId) {
+        return tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament no encontrado con id: " + tournamentId));
     }
 }

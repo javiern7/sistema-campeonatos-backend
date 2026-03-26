@@ -8,7 +8,9 @@ import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stage.repository.TournamentStageRepository;
 import com.multideporte.backend.stagegroup.entity.StageGroup;
 import com.multideporte.backend.stagegroup.repository.StageGroupRepository;
+import com.multideporte.backend.tournament.entity.Tournament;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
+import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class MatchGameValidator {
     private final StageGroupRepository stageGroupRepository;
     private final TournamentTeamRepository tournamentTeamRepository;
     private final MatchGameRepository matchGameRepository;
+    private final TournamentLifecycleGuardService tournamentLifecycleGuardService;
 
     public void validateForCreate(
             Long tournamentId,
@@ -37,7 +40,8 @@ public class MatchGameValidator {
             Integer awayScore,
             Long winnerTournamentTeamId
     ) {
-        validateTournamentExists(tournamentId);
+        Tournament tournament = loadTournament(tournamentId);
+        tournamentLifecycleGuardService.assertMatchCanBeManaged(tournament, status);
         validateStageAndGroup(tournamentId, stageId, groupId);
         TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
         TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
@@ -59,7 +63,8 @@ public class MatchGameValidator {
             Integer awayScore,
             Long winnerTournamentTeamId
     ) {
-        validateTournamentExists(current.getTournamentId());
+        Tournament tournament = loadTournament(current.getTournamentId());
+        tournamentLifecycleGuardService.assertMatchCanBeManaged(tournament, status);
         validateStageAndGroup(current.getTournamentId(), stageId, groupId);
         TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
         TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
@@ -113,10 +118,9 @@ public class MatchGameValidator {
         }
     }
 
-    private void validateTournamentExists(Long tournamentId) {
-        if (!tournamentRepository.existsById(tournamentId)) {
-            throw new BusinessException("El tournamentId enviado no existe");
-        }
+    private Tournament loadTournament(Long tournamentId) {
+        return tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new BusinessException("El tournamentId enviado no existe"));
     }
 
     private void validateStageAndGroup(Long tournamentId, Long stageId, Long groupId) {
