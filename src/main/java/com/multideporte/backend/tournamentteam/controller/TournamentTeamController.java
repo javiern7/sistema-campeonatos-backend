@@ -1,6 +1,7 @@
 package com.multideporte.backend.tournamentteam.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamCreateRequest;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamUpdateRequest;
 import com.multideporte.backend.tournamentteam.dto.response.TournamentTeamResponse;
@@ -48,14 +49,14 @@ public class TournamentTeamController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<TournamentTeamResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<TournamentTeamResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) Long teamId,
             @RequestParam(required = false) TournamentTeamRegistrationStatus registrationStatus,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = {"seedNumber", "id"}) Pageable pageable
     ) {
         Page<TournamentTeamResponse> response = tournamentTeamService.getAll(tournamentId, teamId, registrationStatus, pageable);
-        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_TEAM_PAGE", "Inscripciones obtenidas correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_TEAM_PAGE", "Inscripciones obtenidas correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

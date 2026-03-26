@@ -1,6 +1,7 @@
 package com.multideporte.backend.stage.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.stage.dto.request.TournamentStageCreateRequest;
 import com.multideporte.backend.stage.dto.request.TournamentStageUpdateRequest;
 import com.multideporte.backend.stage.dto.response.TournamentStageResponse;
@@ -46,14 +47,14 @@ public class TournamentStageController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<TournamentStageResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<TournamentStageResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) TournamentStageType stageType,
             @RequestParam(required = false) Boolean active,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = "sequenceOrder") Pageable pageable
     ) {
         Page<TournamentStageResponse> response = tournamentStageService.getAll(tournamentId, stageType, active, pageable);
-        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STAGE_PAGE", "Etapas obtenidas correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STAGE_PAGE", "Etapas obtenidas correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

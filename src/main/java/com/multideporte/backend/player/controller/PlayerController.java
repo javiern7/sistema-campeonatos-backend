@@ -1,6 +1,7 @@
 package com.multideporte.backend.player.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.player.dto.request.PlayerCreateRequest;
 import com.multideporte.backend.player.dto.request.PlayerUpdateRequest;
 import com.multideporte.backend.player.dto.response.PlayerResponse;
@@ -45,15 +46,15 @@ public class PlayerController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<PlayerResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<PlayerResponse>>> getAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String documentType,
             @RequestParam(required = false) String documentNumber,
             @RequestParam(required = false) Boolean active,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = "lastName") Pageable pageable
     ) {
         Page<PlayerResponse> response = playerService.getAll(search, documentType, documentNumber, active, pageable);
-        return ResponseEntity.ok(ApiResponse.success("PLAYER_PAGE", "Jugadores obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("PLAYER_PAGE", "Jugadores obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

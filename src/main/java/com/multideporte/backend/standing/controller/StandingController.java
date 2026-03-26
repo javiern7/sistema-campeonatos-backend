@@ -1,6 +1,7 @@
 package com.multideporte.backend.standing.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.standing.dto.request.StandingCreateRequest;
 import com.multideporte.backend.standing.dto.request.StandingRecalculateRequest;
 import com.multideporte.backend.standing.dto.request.StandingUpdateRequest;
@@ -24,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PostMapping;
 
 @RestController
 @RequestMapping("/standings")
@@ -48,15 +48,15 @@ public class StandingController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<StandingResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<StandingResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) Long stageId,
             @RequestParam(required = false) Long groupId,
             @RequestParam(required = false) Long tournamentTeamId,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = "rankPosition") Pageable pageable
     ) {
         Page<StandingResponse> response = standingService.getAll(tournamentId, stageId, groupId, tournamentTeamId, pageable);
-        return ResponseEntity.ok(ApiResponse.success("STANDING_PAGE", "Standings obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("STANDING_PAGE", "Standings obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

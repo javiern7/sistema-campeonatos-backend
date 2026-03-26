@@ -1,6 +1,7 @@
 package com.multideporte.backend.team.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.team.dto.request.TeamCreateRequest;
 import com.multideporte.backend.team.dto.request.TeamUpdateRequest;
 import com.multideporte.backend.team.dto.response.TeamResponse;
@@ -45,14 +46,14 @@ public class TeamController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<TeamResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<TeamResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String code,
             @RequestParam(required = false) Boolean active,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = "name") Pageable pageable
     ) {
         Page<TeamResponse> response = teamService.getAll(name, code, active, pageable);
-        return ResponseEntity.ok(ApiResponse.success("TEAM_PAGE", "Equipos obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("TEAM_PAGE", "Equipos obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

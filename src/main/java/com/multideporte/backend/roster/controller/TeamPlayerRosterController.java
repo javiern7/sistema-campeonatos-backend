@@ -1,6 +1,7 @@
 package com.multideporte.backend.roster.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.roster.dto.request.TeamPlayerRosterCreateRequest;
 import com.multideporte.backend.roster.dto.request.TeamPlayerRosterUpdateRequest;
 import com.multideporte.backend.roster.dto.response.TeamPlayerRosterResponse;
@@ -48,14 +49,14 @@ public class TeamPlayerRosterController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<TeamPlayerRosterResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<TeamPlayerRosterResponse>>> getAll(
             @RequestParam(required = false) Long tournamentTeamId,
             @RequestParam(required = false) Long playerId,
             @RequestParam(required = false) RosterStatus rosterStatus,
             @PageableDefault(size = 20, sort = "id") Pageable pageable
     ) {
         Page<TeamPlayerRosterResponse> response = teamPlayerRosterService.getAll(tournamentTeamId, playerId, rosterStatus, pageable);
-        return ResponseEntity.ok(ApiResponse.success("ROSTER_PAGE", "Registros de roster obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("ROSTER_PAGE", "Registros de roster obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

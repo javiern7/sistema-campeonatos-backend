@@ -1,6 +1,7 @@
 package com.multideporte.backend.match.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.match.dto.request.MatchGameCreateRequest;
 import com.multideporte.backend.match.dto.request.MatchGameUpdateRequest;
 import com.multideporte.backend.match.dto.response.MatchGameResponse;
@@ -46,15 +47,15 @@ public class MatchGameController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<MatchGameResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<MatchGameResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) Long stageId,
             @RequestParam(required = false) Long groupId,
             @RequestParam(required = false) MatchGameStatus status,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = {"roundNumber", "matchdayNumber", "id"}) Pageable pageable
     ) {
         Page<MatchGameResponse> response = matchGameService.getAll(tournamentId, stageId, groupId, status, pageable);
-        return ResponseEntity.ok(ApiResponse.success("MATCH_PAGE", "Partidos obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("MATCH_PAGE", "Partidos obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

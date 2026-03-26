@@ -1,6 +1,7 @@
 package com.multideporte.backend.tournament.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.tournament.dto.request.TournamentKnockoutBracketGenerateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
@@ -50,14 +51,14 @@ public class TournamentController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<TournamentResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<TournamentResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long sportId,
             @RequestParam(required = false) TournamentStatus status,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = "startDate") Pageable pageable
     ) {
         Page<TournamentResponse> response = tournamentService.getAll(name, sportId, status, pageable);
-        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_PAGE", "Torneos obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_PAGE", "Torneos obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")

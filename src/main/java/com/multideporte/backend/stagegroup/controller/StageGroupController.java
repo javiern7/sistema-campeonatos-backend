@@ -1,6 +1,7 @@
 package com.multideporte.backend.stagegroup.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.stagegroup.dto.request.StageGroupCreateRequest;
 import com.multideporte.backend.stagegroup.dto.request.StageGroupUpdateRequest;
 import com.multideporte.backend.stagegroup.dto.response.StageGroupResponse;
@@ -45,13 +46,13 @@ public class StageGroupController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<StageGroupResponse>>> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<StageGroupResponse>>> getAll(
             @RequestParam(required = false) Long stageId,
             @RequestParam(required = false) String code,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 20, sort = "sequenceOrder") Pageable pageable
     ) {
         Page<StageGroupResponse> response = stageGroupService.getAll(stageId, code, pageable);
-        return ResponseEntity.ok(ApiResponse.success("STAGE_GROUP_PAGE", "Grupos obtenidos correctamente", response));
+        return ResponseEntity.ok(ApiResponse.success("STAGE_GROUP_PAGE", "Grupos obtenidos correctamente", PageResponse.from(response)));
     }
 
     @PutMapping("/{id}")
