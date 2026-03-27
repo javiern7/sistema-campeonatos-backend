@@ -1,6 +1,8 @@
 package com.multideporte.backend.standing.validation;
 
 import com.multideporte.backend.common.exception.BusinessException;
+import com.multideporte.backend.roster.entity.RosterStatus;
+import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
 import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stage.repository.TournamentStageRepository;
 import com.multideporte.backend.stagegroup.entity.StageGroup;
@@ -9,6 +11,7 @@ import com.multideporte.backend.standing.entity.Standing;
 import com.multideporte.backend.standing.repository.StandingRepository;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,6 +24,7 @@ public class StandingValidator {
     private final TournamentStageRepository tournamentStageRepository;
     private final StageGroupRepository stageGroupRepository;
     private final TournamentTeamRepository tournamentTeamRepository;
+    private final TeamPlayerRosterRepository teamPlayerRosterRepository;
     private final StandingRepository standingRepository;
 
     public void validateForCreate(Standing standing) {
@@ -66,6 +70,18 @@ public class StandingValidator {
 
         if (!tournamentTeam.getTournamentId().equals(standing.getTournamentId())) {
             throw new BusinessException("El tournamentTeamId no pertenece al torneo indicado");
+        }
+
+        if (tournamentTeam.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED) {
+            throw new BusinessException("Un standing requiere una inscripcion APPROVED");
+        }
+
+        if (standing.getPlayed() > 0
+                && !teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(
+                standing.getTournamentTeamId(),
+                RosterStatus.ACTIVE
+        )) {
+            throw new BusinessException("Un standing con actividad requiere roster ACTIVE para la inscripcion");
         }
     }
 

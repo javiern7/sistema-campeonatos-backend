@@ -79,7 +79,9 @@ public class TeamPlayerRosterServiceImpl implements TeamPlayerRosterService {
     @Override
     @Transactional
     public void delete(Long id) {
-        teamPlayerRosterRepository.delete(findRoster(id));
+        TeamPlayerRoster entity = findRoster(id);
+        teamPlayerRosterValidator.validateForDelete(entity);
+        teamPlayerRosterRepository.delete(entity);
     }
 
     private TeamPlayerRoster findRoster(Long id) {

@@ -1,14 +1,18 @@
 package com.multideporte.backend.roster.validation;
 
 import com.multideporte.backend.common.exception.BusinessException;
+import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.match.repository.MatchGameRepository;
 import com.multideporte.backend.player.repository.PlayerRepository;
 import com.multideporte.backend.roster.entity.RosterStatus;
 import com.multideporte.backend.roster.entity.TeamPlayerRoster;
 import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
+import com.multideporte.backend.standing.repository.StandingRepository;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +23,8 @@ public class TeamPlayerRosterValidator {
     private final TournamentTeamRepository tournamentTeamRepository;
     private final PlayerRepository playerRepository;
     private final TeamPlayerRosterRepository teamPlayerRosterRepository;
+    private final MatchGameRepository matchGameRepository;
+    private final StandingRepository standingRepository;
 
     public void validateForCreate(
             Long tournamentTeamId,
@@ -60,6 +66,7 @@ public class TeamPlayerRosterValidator {
         validateJerseyNumber(jerseyNumber);
         validateApprovedRegistrationForActiveRoster(tournamentTeam, rosterStatus);
         validateCaptain(current.getTournamentTeamId(), captain, rosterStatus, current.getId());
+        validateOperationalSupportPreservation(current, rosterStatus, endDate);
 
         boolean duplicateHistory = teamPlayerRosterRepository.existsByTournamentTeamIdAndPlayerIdAndStartDate(
                 current.getTournamentTeamId(),
@@ -77,8 +84,12 @@ public class TeamPlayerRosterValidator {
                 RosterStatus.ACTIVE,
                 current.getId()
         )) {
-            throw new BusinessException("El jugador ya tiene un registro activo abierto en este roster");
+                throw new BusinessException("El jugador ya tiene un registro activo abierto en este roster");
         }
+    }
+
+    public void validateForDelete(TeamPlayerRoster current) {
+        validateOperationalSupportPreservation(current, RosterStatus.INACTIVE, current.getEndDate());
     }
 
     private TournamentTeam validateReferences(Long tournamentTeamId, Long playerId) {
@@ -128,5 +139,52 @@ public class TeamPlayerRosterValidator {
         if (tournamentTeam.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED) {
             throw new BusinessException("Un roster ACTIVE requiere una inscripcion APPROVED");
         }
+    }
+
+    private void validateOperationalSupportPreservation(
+            TeamPlayerRoster current,
+            RosterStatus requestedStatus,
+            LocalDate requestedEndDate
+    ) {
+        if (!isOperationallyActive(current.getRosterStatus(), current.getEndDate())) {
+            return;
+        }
+
+        if (isOperationallyActive(requestedStatus, requestedEndDate)) {
+            return;
+        }
+
+        if (!hasOperationalData(current.getTournamentTeamId())) {
+            return;
+        }
+
+        boolean hasAlternativeActiveRoster = teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNullAndIdNot(
+                current.getTournamentTeamId(),
+                RosterStatus.ACTIVE,
+                current.getId()
+        );
+        if (!hasAlternativeActiveRoster) {
+            throw new BusinessException(
+                    "No se puede desactivar o eliminar el ultimo soporte roster ACTIVE cuando la inscripcion ya tiene partidos cerrados o standings"
+            );
+        }
+    }
+
+    private boolean hasOperationalData(Long tournamentTeamId) {
+        var closedStatuses = EnumSet.of(MatchGameStatus.PLAYED, MatchGameStatus.FORFEIT);
+        boolean hasClosedMatches = matchGameRepository
+                .existsByHomeTournamentTeamIdAndStatusInOrAwayTournamentTeamIdAndStatusInOrWinnerTournamentTeamIdAndStatusIn(
+                tournamentTeamId,
+                closedStatuses,
+                tournamentTeamId,
+                closedStatuses,
+                tournamentTeamId,
+                closedStatuses
+        );
+        return hasClosedMatches || standingRepository.existsByTournamentTeamId(tournamentTeamId);
+    }
+
+    private boolean isOperationallyActive(RosterStatus rosterStatus, LocalDate endDate) {
+        return rosterStatus == RosterStatus.ACTIVE && endDate == null;
     }
 }

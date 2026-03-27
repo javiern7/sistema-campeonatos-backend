@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import com.multideporte.backend.common.exception.BusinessException;
+import com.multideporte.backend.roster.entity.RosterStatus;
+import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
 import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.standing.entity.Standing;
 import com.multideporte.backend.standing.repository.StandingRepository;
@@ -12,6 +14,7 @@ import com.multideporte.backend.stagegroup.entity.StageGroup;
 import com.multideporte.backend.stagegroup.repository.StageGroupRepository;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,9 @@ class StandingValidatorTest {
 
     @Mock
     private TournamentTeamRepository tournamentTeamRepository;
+
+    @Mock
+    private TeamPlayerRosterRepository teamPlayerRosterRepository;
 
     @Mock
     private StandingRepository standingRepository;
@@ -106,6 +112,31 @@ class StandingValidatorTest {
         assertThrows(BusinessException.class, () -> standingValidator.validateForCreate(standing));
     }
 
+    @Test
+    void shouldFailWhenStandingUsesNonApprovedRegistration() {
+        Standing standing = baseStanding();
+
+        TournamentTeam team = new TournamentTeam();
+        team.setId(10L);
+        team.setTournamentId(1L);
+        team.setRegistrationStatus(TournamentTeamRegistrationStatus.PENDING);
+
+        when(tournamentRepository.existsById(1L)).thenReturn(true);
+        when(tournamentTeamRepository.findById(10L)).thenReturn(Optional.of(team));
+
+        assertThrows(BusinessException.class, () -> standingValidator.validateForCreate(standing));
+    }
+
+    @Test
+    void shouldFailWhenPlayedStandingLacksActiveRosterSupport() {
+        Standing standing = baseStanding();
+        prepareMocks(standing);
+        when(teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(10L, RosterStatus.ACTIVE))
+                .thenReturn(false);
+
+        assertThrows(BusinessException.class, () -> standingValidator.validateForCreate(standing));
+    }
+
     private Standing baseStanding() {
         Standing standing = new Standing();
         standing.setTournamentId(1L);
@@ -125,8 +156,13 @@ class StandingValidatorTest {
         TournamentTeam team = new TournamentTeam();
         team.setId(10L);
         team.setTournamentId(standing.getTournamentId());
+        team.setRegistrationStatus(TournamentTeamRegistrationStatus.APPROVED);
 
         when(tournamentRepository.existsById(standing.getTournamentId())).thenReturn(true);
         when(tournamentTeamRepository.findById(standing.getTournamentTeamId())).thenReturn(Optional.of(team));
+        when(teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(
+                standing.getTournamentTeamId(),
+                RosterStatus.ACTIVE
+        )).thenReturn(true);
     }
 }
