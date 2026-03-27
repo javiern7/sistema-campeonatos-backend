@@ -81,6 +81,7 @@ public class TournamentTeamServiceImpl implements TournamentTeamService {
                 request.seedNumber(),
                 request.groupDrawPosition()
         );
+        assertRegistrationStatusChangeIsAllowed(entity, request.registrationStatus());
 
         tournamentTeamMapper.updateEntity(entity, request);
         TournamentTeam saved = tournamentTeamRepository.save(entity);
@@ -107,5 +108,32 @@ public class TournamentTeamServiceImpl implements TournamentTeamService {
     private TournamentTeam findTournamentTeam(Long id) {
         return tournamentTeamRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TournamentTeam no encontrado con id: " + id));
+    }
+
+    private void assertRegistrationStatusChangeIsAllowed(
+            TournamentTeam current,
+            TournamentTeamRegistrationStatus requestedStatus
+    ) {
+        if (current.getRegistrationStatus() == requestedStatus) {
+            return;
+        }
+
+        if (requestedStatus == TournamentTeamRegistrationStatus.APPROVED) {
+            return;
+        }
+
+        boolean hasRelatedOperation = tournamentTeamRosterRepository.existsByTournamentTeamId(current.getId())
+                || matchGameRepository.existsByHomeTournamentTeamIdOrAwayTournamentTeamIdOrWinnerTournamentTeamId(
+                current.getId(),
+                current.getId(),
+                current.getId()
+        )
+                || standingRepository.existsByTournamentTeamId(current.getId());
+
+        if (hasRelatedOperation) {
+            throw new BusinessException(
+                    "No se puede cambiar la inscripcion a un estado no APPROVED cuando ya tiene roster, partidos o standings asociados"
+            );
+        }
     }
 }

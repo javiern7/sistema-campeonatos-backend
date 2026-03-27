@@ -1,5 +1,6 @@
 package com.multideporte.backend.tournamentteam.validation;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -64,5 +65,19 @@ class TournamentTeamValidatorTest {
 
         assertThrows(BusinessException.class, () ->
                 tournamentTeamValidator.validateForCreate(1L, 2L, TournamentTeamRegistrationStatus.PENDING, null, null));
+    }
+
+    @Test
+    void shouldAllowZeroForSeedAndDrawPosition() {
+        Tournament tournament = new Tournament();
+        tournament.setId(1L);
+        tournament.setStatus(TournamentStatus.DRAFT);
+
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.existsById(2L)).thenReturn(true);
+        when(tournamentTeamRepository.existsByTournamentIdAndTeamId(1L, 2L)).thenReturn(false);
+
+        assertDoesNotThrow(() ->
+                tournamentTeamValidator.validateForCreate(1L, 2L, TournamentTeamRegistrationStatus.PENDING, 0, 0));
     }
 }

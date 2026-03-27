@@ -74,11 +74,11 @@ public class TournamentTeamValidator {
     }
 
     private void validateNumbers(Integer seedNumber, Integer groupDrawPosition) {
-        if (seedNumber != null && seedNumber < 1) {
-            throw new BusinessException("seedNumber debe ser mayor a 0");
+        if (seedNumber != null && seedNumber < 0) {
+            throw new BusinessException("seedNumber debe ser mayor o igual a 0");
         }
-        if (groupDrawPosition != null && groupDrawPosition < 1) {
-            throw new BusinessException("groupDrawPosition debe ser mayor a 0");
+        if (groupDrawPosition != null && groupDrawPosition < 0) {
+            throw new BusinessException("groupDrawPosition debe ser mayor o igual a 0");
         }
     }
 

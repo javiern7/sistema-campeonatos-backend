@@ -14,6 +14,7 @@ import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
 import com.multideporte.backend.tournament.service.TournamentStageProgressionService;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -179,6 +180,11 @@ public class MatchGameValidator {
 
         if (!home.getTournamentId().equals(tournamentId) || !away.getTournamentId().equals(tournamentId)) {
             throw new BusinessException("Los equipos del partido deben pertenecer al torneo indicado");
+        }
+
+        if (home.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED
+                || away.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED) {
+            throw new BusinessException("Los equipos del partido deben tener inscripcion APPROVED");
         }
     }
 

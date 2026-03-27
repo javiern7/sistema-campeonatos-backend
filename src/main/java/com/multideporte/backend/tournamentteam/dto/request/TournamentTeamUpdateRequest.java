@@ -8,10 +8,10 @@ public record TournamentTeamUpdateRequest(
         @NotNull(message = "registrationStatus es obligatorio")
         TournamentTeamRegistrationStatus registrationStatus,
 
-        @Min(value = 1, message = "seedNumber debe ser mayor a 0")
+        @Min(value = 0, message = "seedNumber debe ser mayor o igual a 0")
         Integer seedNumber,
 
-        @Min(value = 1, message = "groupDrawPosition debe ser mayor a 0")
+        @Min(value = 0, message = "groupDrawPosition debe ser mayor o igual a 0")
         Integer groupDrawPosition
 ) {
 }

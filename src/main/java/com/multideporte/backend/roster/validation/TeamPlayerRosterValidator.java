@@ -5,6 +5,8 @@ import com.multideporte.backend.player.repository.PlayerRepository;
 import com.multideporte.backend.roster.entity.RosterStatus;
 import com.multideporte.backend.roster.entity.TeamPlayerRoster;
 import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -27,9 +29,10 @@ public class TeamPlayerRosterValidator {
             LocalDate startDate,
             LocalDate endDate
     ) {
-        validateReferences(tournamentTeamId, playerId);
+        TournamentTeam tournamentTeam = validateReferences(tournamentTeamId, playerId);
         validateDates(startDate, endDate);
         validateJerseyNumber(jerseyNumber);
+        validateApprovedRegistrationForActiveRoster(tournamentTeam, rosterStatus);
         validateCaptain(tournamentTeamId, captain, rosterStatus, null);
 
         if (teamPlayerRosterRepository.existsByTournamentTeamIdAndPlayerIdAndStartDate(tournamentTeamId, playerId, startDate)) {
@@ -51,8 +54,11 @@ public class TeamPlayerRosterValidator {
             LocalDate startDate,
             LocalDate endDate
     ) {
+        TournamentTeam tournamentTeam = tournamentTeamRepository.findById(current.getTournamentTeamId())
+                .orElseThrow(() -> new BusinessException("El tournamentTeamId enviado no existe"));
         validateDates(startDate, endDate);
         validateJerseyNumber(jerseyNumber);
+        validateApprovedRegistrationForActiveRoster(tournamentTeam, rosterStatus);
         validateCaptain(current.getTournamentTeamId(), captain, rosterStatus, current.getId());
 
         boolean duplicateHistory = teamPlayerRosterRepository.existsByTournamentTeamIdAndPlayerIdAndStartDate(
@@ -75,13 +81,13 @@ public class TeamPlayerRosterValidator {
         }
     }
 
-    private void validateReferences(Long tournamentTeamId, Long playerId) {
-        if (!tournamentTeamRepository.existsById(tournamentTeamId)) {
-            throw new BusinessException("El tournamentTeamId enviado no existe");
-        }
+    private TournamentTeam validateReferences(Long tournamentTeamId, Long playerId) {
+        TournamentTeam tournamentTeam = tournamentTeamRepository.findById(tournamentTeamId)
+                .orElseThrow(() -> new BusinessException("El tournamentTeamId enviado no existe"));
         if (!playerRepository.existsById(playerId)) {
             throw new BusinessException("El playerId enviado no existe");
         }
+        return tournamentTeam;
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
@@ -111,6 +117,16 @@ public class TeamPlayerRosterValidator {
 
         if (existsAnotherCaptain) {
             throw new BusinessException("Ya existe un capitan activo para este roster");
+        }
+    }
+
+    private void validateApprovedRegistrationForActiveRoster(TournamentTeam tournamentTeam, RosterStatus rosterStatus) {
+        if (rosterStatus != RosterStatus.ACTIVE) {
+            return;
+        }
+
+        if (tournamentTeam.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED) {
+            throw new BusinessException("Un roster ACTIVE requiere una inscripcion APPROVED");
         }
     }
 }

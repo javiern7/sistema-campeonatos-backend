@@ -17,6 +17,7 @@ import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournament.service.TournamentLifecycleGuardService;
 import com.multideporte.backend.tournament.service.TournamentStageProgressionService;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -64,13 +65,8 @@ class MatchGameValidatorTest {
 
     @Test
     void shouldFailWhenTeamsBelongToDifferentTournament() {
-        TournamentTeam home = new TournamentTeam();
-        home.setId(10L);
-        home.setTournamentId(1L);
-
-        TournamentTeam away = new TournamentTeam();
-        away.setId(11L);
-        away.setTournamentId(2L);
+        TournamentTeam home = team(10L, 1L);
+        TournamentTeam away = team(11L, 2L);
 
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament(1L, TournamentStatus.OPEN)));
         when(tournamentTeamRepository.findById(10L)).thenReturn(Optional.of(home));
@@ -84,13 +80,8 @@ class MatchGameValidatorTest {
 
     @Test
     void shouldFailWhenMatchAlreadyExistsInSameScope() {
-        TournamentTeam home = new TournamentTeam();
-        home.setId(10L);
-        home.setTournamentId(1L);
-
-        TournamentTeam away = new TournamentTeam();
-        away.setId(11L);
-        away.setTournamentId(1L);
+        TournamentTeam home = team(10L, 1L);
+        TournamentTeam away = team(11L, 1L);
 
         TournamentStage stage = new TournamentStage();
         stage.setId(3L);
@@ -117,13 +108,8 @@ class MatchGameValidatorTest {
 
     @Test
     void shouldFailWhenPlayedMatchHasNoScores() {
-        TournamentTeam home = new TournamentTeam();
-        home.setId(10L);
-        home.setTournamentId(1L);
-
-        TournamentTeam away = new TournamentTeam();
-        away.setId(11L);
-        away.setTournamentId(1L);
+        TournamentTeam home = team(10L, 1L);
+        TournamentTeam away = team(11L, 1L);
 
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament(1L, TournamentStatus.IN_PROGRESS)));
         when(tournamentTeamRepository.findById(10L)).thenReturn(Optional.of(home));
@@ -152,13 +138,8 @@ class MatchGameValidatorTest {
 
     @Test
     void shouldFailWhenGroupDoesNotBelongToStage() {
-        TournamentTeam home = new TournamentTeam();
-        home.setId(10L);
-        home.setTournamentId(1L);
-
-        TournamentTeam away = new TournamentTeam();
-        away.setId(11L);
-        away.setTournamentId(1L);
+        TournamentTeam home = team(10L, 1L);
+        TournamentTeam away = team(11L, 1L);
 
         TournamentStage stage = new TournamentStage();
         stage.setId(3L);
@@ -179,13 +160,8 @@ class MatchGameValidatorTest {
 
     @Test
     void shouldFailWhenForfeitDoesNotProvideWinner() {
-        TournamentTeam home = new TournamentTeam();
-        home.setId(10L);
-        home.setTournamentId(1L);
-
-        TournamentTeam away = new TournamentTeam();
-        away.setId(11L);
-        away.setTournamentId(1L);
+        TournamentTeam home = team(10L, 1L);
+        TournamentTeam away = team(11L, 1L);
 
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament(1L, TournamentStatus.IN_PROGRESS)));
         when(tournamentTeamRepository.findById(10L)).thenReturn(Optional.of(home));
@@ -234,6 +210,22 @@ class MatchGameValidatorTest {
                 ));
     }
 
+    @Test
+    void shouldFailWhenMatchUsesNonApprovedRegistration() {
+        TournamentTeam home = team(10L, 1L);
+        home.setRegistrationStatus(TournamentTeamRegistrationStatus.PENDING);
+        TournamentTeam away = team(11L, 1L);
+
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament(1L, TournamentStatus.OPEN)));
+        when(tournamentTeamRepository.findById(10L)).thenReturn(Optional.of(home));
+        when(tournamentTeamRepository.findById(11L)).thenReturn(Optional.of(away));
+
+        assertThrows(BusinessException.class, () ->
+                matchGameValidator.validateForCreate(
+                        1L, null, null, null, null, 10L, 11L, MatchGameStatus.SCHEDULED, null, null, null
+                ));
+    }
+
     private Tournament tournament(Long id, TournamentStatus status) {
         Tournament tournament = new Tournament();
         tournament.setId(id);
@@ -245,6 +237,7 @@ class MatchGameValidatorTest {
         TournamentTeam team = new TournamentTeam();
         team.setId(id);
         team.setTournamentId(tournamentId);
+        team.setRegistrationStatus(TournamentTeamRegistrationStatus.APPROVED);
         return team;
     }
 
