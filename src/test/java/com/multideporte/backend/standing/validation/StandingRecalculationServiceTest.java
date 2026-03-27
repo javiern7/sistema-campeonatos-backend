@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 import com.multideporte.backend.match.entity.MatchGame;
 import com.multideporte.backend.match.entity.MatchGameStatus;
 import com.multideporte.backend.match.repository.MatchGameRepository;
+import com.multideporte.backend.roster.entity.RosterStatus;
+import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
 import com.multideporte.backend.standing.dto.request.StandingRecalculateRequest;
 import com.multideporte.backend.standing.dto.response.StandingRecalculationResponse;
 import com.multideporte.backend.standing.repository.StandingRepository;
@@ -44,6 +46,9 @@ class StandingRecalculationServiceTest {
     private MatchGameRepository matchGameRepository;
 
     @Mock
+    private TeamPlayerRosterRepository teamPlayerRosterRepository;
+
+    @Mock
     private StandingRepository standingRepository;
 
     @Mock
@@ -76,6 +81,8 @@ class StandingRecalculationServiceTest {
         when(matchGameRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNullAndStatusIn(
                 org.mockito.ArgumentMatchers.eq(1L), anyCollection()
         )).thenReturn(List.of(match));
+        mockActiveRoster(10L, true);
+        mockActiveRoster(11L, true);
         when(standingRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNull(1L)).thenReturn(List.of());
         when(standingRepository.saveAll(standingCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -149,6 +156,8 @@ class StandingRecalculationServiceTest {
         when(matchGameRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNullAndStatusIn(
                 org.mockito.ArgumentMatchers.eq(1L), anyCollection()
         )).thenReturn(List.of(match));
+        mockActiveRoster(10L, true);
+        mockActiveRoster(11L, true);
         when(standingRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNull(1L)).thenReturn(List.of());
         when(standingRepository.saveAll(standingCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -201,6 +210,9 @@ class StandingRecalculationServiceTest {
         when(matchGameRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNullAndStatusIn(
                 org.mockito.ArgumentMatchers.eq(1L), anyCollection()
         )).thenReturn(List.of(match1, match2, match3));
+        mockActiveRoster(10L, true);
+        mockActiveRoster(11L, true);
+        mockActiveRoster(12L, true);
         when(standingRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNull(1L)).thenReturn(List.of());
         when(standingRepository.saveAll(standingCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -234,5 +246,42 @@ class StandingRecalculationServiceTest {
                 com.multideporte.backend.common.exception.BusinessException.class,
                 () -> standingRecalculationService.recalculate(new StandingRecalculateRequest(1L, 5L, null))
         );
+    }
+
+    @Test
+    void shouldFailWhenClosedMatchesLackActiveRosterSupport() {
+        Tournament tournament = new Tournament();
+        tournament.setId(1L);
+        tournament.setPointsWin(3);
+        tournament.setPointsDraw(1);
+        tournament.setPointsLoss(0);
+
+        MatchGame match = new MatchGame();
+        match.setTournamentId(1L);
+        match.setHomeTournamentTeamId(10L);
+        match.setAwayTournamentTeamId(11L);
+        match.setStatus(MatchGameStatus.PLAYED);
+        match.setHomeScore(2);
+        match.setAwayScore(1);
+
+        when(tournamentRepository.existsById(1L)).thenReturn(true);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(matchGameRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNullAndStatusIn(
+                org.mockito.ArgumentMatchers.eq(1L), anyCollection()
+        )).thenReturn(List.of(match));
+        mockActiveRoster(10L, true);
+        mockActiveRoster(11L, false);
+
+        Assertions.assertThrows(
+                com.multideporte.backend.common.exception.BusinessException.class,
+                () -> standingRecalculationService.recalculate(new StandingRecalculateRequest(1L, null, null))
+        );
+    }
+
+    private void mockActiveRoster(Long tournamentTeamId, boolean exists) {
+        when(teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(
+                tournamentTeamId,
+                RosterStatus.ACTIVE
+        )).thenReturn(exists);
     }
 }

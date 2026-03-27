@@ -4,6 +4,8 @@ import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.match.entity.MatchGame;
 import com.multideporte.backend.match.entity.MatchGameStatus;
 import com.multideporte.backend.match.repository.MatchGameRepository;
+import com.multideporte.backend.roster.entity.RosterStatus;
+import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
 import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stage.entity.TournamentStageType;
 import com.multideporte.backend.stage.repository.TournamentStageRepository;
@@ -27,6 +29,7 @@ public class MatchGameValidator {
     private final TournamentStageRepository tournamentStageRepository;
     private final StageGroupRepository stageGroupRepository;
     private final TournamentTeamRepository tournamentTeamRepository;
+    private final TeamPlayerRosterRepository teamPlayerRosterRepository;
     private final MatchGameRepository matchGameRepository;
     private final TournamentLifecycleGuardService tournamentLifecycleGuardService;
     private final TournamentStageProgressionService tournamentStageProgressionService;
@@ -50,6 +53,7 @@ public class MatchGameValidator {
         TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
         TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
         validateTeamsBelongToTournament(tournamentId, home, away);
+        validateActiveRosterSupport(status, home, away);
         tournamentStageProgressionService.assertMatchStageCanBeManaged(
                 tournament,
                 stageId,
@@ -81,6 +85,7 @@ public class MatchGameValidator {
         TournamentTeam home = loadTournamentTeam(homeTournamentTeamId);
         TournamentTeam away = loadTournamentTeam(awayTournamentTeamId);
         validateTeamsBelongToTournament(current.getTournamentId(), home, away);
+        validateActiveRosterSupport(status, home, away);
         tournamentStageProgressionService.assertMatchStageCanBeManaged(
                 tournament,
                 stageId,
@@ -185,6 +190,21 @@ public class MatchGameValidator {
         if (home.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED
                 || away.getRegistrationStatus() != TournamentTeamRegistrationStatus.APPROVED) {
             throw new BusinessException("Los equipos del partido deben tener inscripcion APPROVED");
+        }
+    }
+
+    private void validateActiveRosterSupport(
+            MatchGameStatus status,
+            TournamentTeam home,
+            TournamentTeam away
+    ) {
+        if (status == MatchGameStatus.CANCELLED) {
+            return;
+        }
+
+        if (!teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(home.getId(), RosterStatus.ACTIVE)
+                || !teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(away.getId(), RosterStatus.ACTIVE)) {
+            throw new BusinessException("Los equipos del partido deben tener roster ACTIVE antes de competir");
         }
     }
 

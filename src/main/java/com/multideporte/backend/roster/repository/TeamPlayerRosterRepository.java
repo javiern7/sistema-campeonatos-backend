@@ -23,6 +23,8 @@ public interface TeamPlayerRosterRepository extends JpaRepository<TeamPlayerRost
             Long id
     );
 
+    boolean existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(Long tournamentTeamId, RosterStatus rosterStatus);
+
     boolean existsByTournamentTeamIdAndCaptainTrueAndRosterStatus(Long tournamentTeamId, RosterStatus rosterStatus);
 
     boolean existsByTournamentTeamIdAndCaptainTrueAndRosterStatusAndIdNot(

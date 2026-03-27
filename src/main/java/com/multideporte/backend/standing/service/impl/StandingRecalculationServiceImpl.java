@@ -4,6 +4,8 @@ import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.match.entity.MatchGame;
 import com.multideporte.backend.match.entity.MatchGameStatus;
 import com.multideporte.backend.match.repository.MatchGameRepository;
+import com.multideporte.backend.roster.entity.RosterStatus;
+import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
 import com.multideporte.backend.standing.dto.request.StandingRecalculateRequest;
 import com.multideporte.backend.standing.dto.response.StandingRecalculationResponse;
 import com.multideporte.backend.standing.entity.Standing;
@@ -35,6 +37,7 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
     private final TournamentStageRepository tournamentStageRepository;
     private final StageGroupRepository stageGroupRepository;
     private final MatchGameRepository matchGameRepository;
+    private final TeamPlayerRosterRepository teamPlayerRosterRepository;
     private final StandingRepository standingRepository;
     private final TournamentStageProgressionService tournamentStageProgressionService;
 
@@ -51,6 +54,7 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
         );
 
         List<MatchGame> matches = loadMatches(request);
+        validateOperationalRosterSupport(matches);
         List<Standing> currentStandings = loadCurrentStandings(request);
 
         if (!currentStandings.isEmpty()) {
@@ -142,6 +146,22 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
             );
         }
         return standingRepository.findAllByTournamentIdAndStageIdIsNullAndGroupIdIsNull(request.tournamentId());
+    }
+
+    private void validateOperationalRosterSupport(List<MatchGame> matches) {
+        for (MatchGame match : matches) {
+            if (!teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(
+                    match.getHomeTournamentTeamId(),
+                    RosterStatus.ACTIVE
+            ) || !teamPlayerRosterRepository.existsByTournamentTeamIdAndRosterStatusAndEndDateIsNull(
+                    match.getAwayTournamentTeamId(),
+                    RosterStatus.ACTIVE
+            )) {
+                throw new BusinessException(
+                        "No se permite recalcular standings cuando existen partidos cerrados sin roster ACTIVE para todos los participantes"
+                );
+            }
+        }
     }
 
     private void accumulateMatch(Map<Long, StandingAccumulator> table, MatchGame match, Tournament tournament) {
