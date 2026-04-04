@@ -6,7 +6,9 @@ import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
 import com.multideporte.backend.tournament.dto.response.TournamentKnockoutProgressionResponse;
+import com.multideporte.backend.tournament.dto.response.TournamentOperationalSummaryResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
+import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,7 +19,25 @@ public interface TournamentService {
 
     TournamentResponse getById(Long id);
 
-    Page<TournamentResponse> getAll(String name, Long sportId, TournamentStatus status, Pageable pageable);
+    Page<TournamentResponse> getAll(
+            String name,
+            Long sportId,
+            TournamentStatus status,
+            TournamentOperationalCategory operationalCategory,
+            Boolean executiveOnly,
+            Pageable pageable
+    );
+
+    Page<TournamentOperationalSummaryResponse> getOperationalSummaries(
+            String name,
+            Long sportId,
+            TournamentStatus status,
+            TournamentOperationalCategory operationalCategory,
+            Boolean executiveOnly,
+            Pageable pageable
+    );
+
+    TournamentOperationalSummaryResponse getOperationalSummaryById(Long id);
 
     TournamentResponse update(Long id, TournamentUpdateRequest request);
 

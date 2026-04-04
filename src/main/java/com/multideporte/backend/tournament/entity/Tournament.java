@@ -45,6 +45,10 @@ public class Tournament {
     @Column(name = "status", nullable = false, length = 20)
     private TournamentStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "operational_category", nullable = false, length = 20)
+    private TournamentOperationalCategory operationalCategory;
+
     @Column(name = "description")
     private String description;
 

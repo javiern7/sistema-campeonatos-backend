@@ -192,6 +192,7 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
                 seasonName,
                 TournamentFormat.LEAGUE,
                 TournamentStatus.DRAFT,
+                null,
                 "Flujo integrado Sprint 3",
                 LocalDate.of(2026, 4, 1),
                 LocalDate.of(2026, 6, 30),

@@ -10,9 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.roster.entity.RosterStatus;
 import com.multideporte.backend.support.PostgreSqlContainerConfig;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.entity.TournamentFormat;
+import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -45,6 +47,7 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 "2026",
                 TournamentFormat.LEAGUE,
                 TournamentStatus.DRAFT,
+                null,
                 "Torneo para validar flujo completo",
                 LocalDate.of(2026, 4, 1),
                 LocalDate.of(2026, 6, 30),
@@ -64,7 +67,9 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.slug").value("liga-test-integracion-2026"))
-                .andExpect(jsonPath("$.data.createdByUserId").isNumber());
+                .andExpect(jsonPath("$.data.createdByUserId").isNumber())
+                .andExpect(jsonPath("$.data.operationalCategory").value(TournamentOperationalCategory.PRODUCTION.name()))
+                .andExpect(jsonPath("$.data.executiveReportingEligible").value(true));
     }
 
     @Test
@@ -431,6 +436,103 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     @Test
+    void shouldFilterTournamentsByOperationalCategoryAndExecutiveOnly() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        createTournament("Production " + suffix, "2026-P-" + suffix, TournamentFormat.LEAGUE);
+
+        long qaTournamentId = createTournament("QA " + suffix, "2026-QA-" + suffix, TournamentFormat.LEAGUE);
+        mockMvc.perform(put("/api/tournaments/{id}", qaTournamentId)
+                        .with(httpBasic("devadmin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.ofEntries(
+                                Map.entry("sportId", 1),
+                                Map.entry("name", "QA " + suffix),
+                                Map.entry("seasonName", "2026-QA-" + suffix),
+                                Map.entry("format", TournamentFormat.LEAGUE.name()),
+                                Map.entry("status", TournamentStatus.DRAFT.name()),
+                                Map.entry("operationalCategory", TournamentOperationalCategory.QA.name()),
+                                Map.entry("description", "Torneo QA"),
+                                Map.entry("startDate", "2026-04-01"),
+                                Map.entry("endDate", "2026-06-30"),
+                                Map.entry("registrationOpenAt", "2026-03-20T10:00:00Z"),
+                                Map.entry("registrationCloseAt", "2026-03-31T23:59:59Z"),
+                                Map.entry("maxTeams", 10),
+                                Map.entry("pointsWin", 3),
+                                Map.entry("pointsDraw", 1),
+                                Map.entry("pointsLoss", 0)
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.operationalCategory").value(TournamentOperationalCategory.QA.name()))
+                .andExpect(jsonPath("$.data.executiveReportingEligible").value(false));
+
+        mockMvc.perform(get("/api/tournaments")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .param("operationalCategory", TournamentOperationalCategory.QA.name()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].id").value(qaTournamentId))
+                .andExpect(jsonPath("$.data.content[0].operationalCategory").value(TournamentOperationalCategory.QA.name()))
+                .andExpect(jsonPath("$.data.content[0].executiveReportingEligible").value(false));
+
+        mockMvc.perform(get("/api/tournaments")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .param("executiveOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].operationalCategory").value(org.hamcrest.Matchers.everyItem(
+                        org.hamcrest.Matchers.is(TournamentOperationalCategory.PRODUCTION.name())
+                )));
+    }
+
+    @Test
+    void shouldExposeOperationalSummaryWithIntegrityAlerts() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        long tournamentId = createTournament("Ops Summary " + suffix, "2026-" + suffix, TournamentFormat.LEAGUE);
+        long teamAId = createTeam("Ops Team A " + suffix, "OSA" + suffix);
+        long teamBId = createTeam("Ops Team B " + suffix, "OSB" + suffix);
+
+        transitionTournament(tournamentId, TournamentStatus.OPEN)
+                .andExpect(status().isOk());
+
+        long tournamentTeamAId = createTournamentTeam(tournamentId, teamAId, 1, 1);
+        long tournamentTeamBId = createTournamentTeam(tournamentId, teamBId, 2, 2);
+        long stageId = createStage(tournamentId, "Resumen " + suffix, "GROUP_STAGE");
+        long groupId = createGroup(stageId, "OPS" + suffix, "Grupo OPS " + suffix);
+
+        createRosterEntry(tournamentTeamAId, 10);
+
+        transitionTournament(tournamentId, TournamentStatus.IN_PROGRESS)
+                .andExpect(status().isOk());
+
+        createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamAId, tournamentTeamBId, MatchGameStatus.PLAYED.name(), 2, 1);
+
+        mockMvc.perform(get("/api/tournaments/{id}/operational-summary", tournamentId)
+                        .with(httpBasic("devadmin", "admin123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tournamentId").value(tournamentId))
+                .andExpect(jsonPath("$.data.operationalCategory").value(TournamentOperationalCategory.PRODUCTION.name()))
+                .andExpect(jsonPath("$.data.executiveReportingEligible").value(true))
+                .andExpect(jsonPath("$.data.integrityHealthy").value(false))
+                .andExpect(jsonPath("$.data.approvedTeams").value(2))
+                .andExpect(jsonPath("$.data.approvedTeamsWithActiveRosterSupport").value(1))
+                .andExpect(jsonPath("$.data.approvedTeamsMissingActiveRosterSupport").value(1))
+                .andExpect(jsonPath("$.data.closedMatches").value(1))
+                .andExpect(jsonPath("$.data.generatedStandings").value(0))
+                .andExpect(jsonPath("$.data.integrityAlerts").isArray())
+                .andExpect(jsonPath("$.data.integrityAlerts[*]").value(org.hamcrest.Matchers.hasItems(
+                        "APPROVED_TEAMS_MISSING_ACTIVE_ROSTER_SUPPORT",
+                        "CLOSED_MATCHES_WITHOUT_FULL_ACTIVE_ROSTER_SUPPORT",
+                        "CLOSED_MATCHES_WITHOUT_STANDINGS"
+                )));
+
+        mockMvc.perform(get("/api/tournaments/operational-summary")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .param("name", "Ops Summary " + suffix)
+                        .param("executiveOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].tournamentId").value(tournamentId))
+                .andExpect(jsonPath("$.data.content[0].integrityHealthy").value(false));
+    }
+
+    @Test
     void shouldRejectCancellingTournamentAlreadyInProgress() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         long tournamentId = createTournament("Cancel Late " + suffix, "2026-" + suffix, TournamentFormat.LEAGUE);
@@ -460,6 +562,7 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 seasonName,
                 format,
                 TournamentStatus.DRAFT,
+                null,
                 "Torneo para validar lifecycle",
                 LocalDate.of(2026, 4, 1),
                 LocalDate.of(2026, 6, 30),
@@ -475,6 +578,38 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                         .with(httpBasic("devadmin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn());
+    }
+
+    private long createRosterEntry(long tournamentTeamId, int jerseyNumber) throws Exception {
+        return extractId(mockMvc.perform(post("/api/rosters")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "tournamentTeamId", tournamentTeamId,
+                                "playerId", createPlayer("Player " + tournamentTeamId + "-" + jerseyNumber, "Roster", "DOC" + UUID.randomUUID().toString().substring(0, 6)),
+                                "jerseyNumber", jerseyNumber,
+                                "captain", false,
+                                "positionName", "MID",
+                                "rosterStatus", RosterStatus.ACTIVE.name(),
+                                "startDate", "2026-04-01"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn());
+    }
+
+    private long createPlayer(String firstName, String lastName, String documentNumber) throws Exception {
+        return extractId(mockMvc.perform(post("/api/players")
+                        .with(httpBasic("devadmin", "admin123"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "firstName", firstName,
+                                "lastName", lastName,
+                                "documentType", "DNI",
+                                "documentNumber", documentNumber,
+                                "active", true
+                        ))))
                 .andExpect(status().isCreated())
                 .andReturn());
     }

@@ -8,7 +8,9 @@ import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitio
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
 import com.multideporte.backend.tournament.dto.response.TournamentKnockoutBracketResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentKnockoutProgressionResponse;
+import com.multideporte.backend.tournament.dto.response.TournamentOperationalSummaryResponse;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
+import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
 import com.multideporte.backend.tournament.service.TournamentService;
 import jakarta.validation.Valid;
@@ -44,10 +46,44 @@ public class TournamentController {
                 .body(ApiResponse.success("TOURNAMENT_CREATED", "Torneo creado correctamente", response));
     }
 
+    @GetMapping("/operational-summary")
+    public ResponseEntity<ApiResponse<PageResponse<TournamentOperationalSummaryResponse>>> getOperationalSummaries(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Long sportId,
+            @RequestParam(required = false) TournamentStatus status,
+            @RequestParam(required = false) TournamentOperationalCategory operationalCategory,
+            @RequestParam(required = false) Boolean executiveOnly,
+            @PageableDefault(size = 20, sort = "startDate") Pageable pageable
+    ) {
+        Page<TournamentOperationalSummaryResponse> response = tournamentService.getOperationalSummaries(
+                name,
+                sportId,
+                status,
+                operationalCategory,
+                executiveOnly,
+                pageable
+        );
+        return ResponseEntity.ok(ApiResponse.success(
+                "TOURNAMENT_OPERATIONAL_SUMMARY_PAGE",
+                "Resumenes operativos obtenidos correctamente",
+                PageResponse.from(response)
+        ));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TournamentResponse>> getById(@PathVariable Long id) {
         TournamentResponse response = tournamentService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_FOUND", "Torneo obtenido correctamente", response));
+    }
+
+    @GetMapping("/{id}/operational-summary")
+    public ResponseEntity<ApiResponse<TournamentOperationalSummaryResponse>> getOperationalSummaryById(@PathVariable Long id) {
+        TournamentOperationalSummaryResponse response = tournamentService.getOperationalSummaryById(id);
+        return ResponseEntity.ok(ApiResponse.success(
+                "TOURNAMENT_OPERATIONAL_SUMMARY_FOUND",
+                "Resumen operativo de torneo obtenido correctamente",
+                response
+        ));
     }
 
     @GetMapping
@@ -55,9 +91,18 @@ public class TournamentController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long sportId,
             @RequestParam(required = false) TournamentStatus status,
+            @RequestParam(required = false) TournamentOperationalCategory operationalCategory,
+            @RequestParam(required = false) Boolean executiveOnly,
             @PageableDefault(size = 20, sort = "startDate") Pageable pageable
     ) {
-        Page<TournamentResponse> response = tournamentService.getAll(name, sportId, status, pageable);
+        Page<TournamentResponse> response = tournamentService.getAll(
+                name,
+                sportId,
+                status,
+                operationalCategory,
+                executiveOnly,
+                pageable
+        );
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_PAGE", "Torneos obtenidos correctamente", PageResponse.from(response)));
     }
 

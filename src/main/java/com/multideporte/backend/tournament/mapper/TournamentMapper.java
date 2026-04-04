@@ -4,6 +4,7 @@ import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentUpdateRequest;
 import com.multideporte.backend.tournament.dto.response.TournamentResponse;
 import com.multideporte.backend.tournament.entity.Tournament;
+import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -18,6 +19,10 @@ public interface TournamentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Tournament toEntity(TournamentCreateRequest request);
 
+    @Mapping(
+            target = "executiveReportingEligible",
+            expression = "java(isExecutiveReportingEligible(entity.getOperationalCategory()))"
+    )
     TournamentResponse toResponse(Tournament entity);
 
     @Mapping(target = "id", ignore = true)
@@ -26,4 +31,8 @@ public interface TournamentMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(@MappingTarget Tournament entity, TournamentUpdateRequest request);
+
+    default boolean isExecutiveReportingEligible(TournamentOperationalCategory operationalCategory) {
+        return operationalCategory == TournamentOperationalCategory.PRODUCTION;
+    }
 }

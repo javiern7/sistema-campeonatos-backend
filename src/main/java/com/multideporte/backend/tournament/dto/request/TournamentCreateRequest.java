@@ -1,6 +1,7 @@
 package com.multideporte.backend.tournament.dto.request;
 
 import com.multideporte.backend.tournament.entity.TournamentFormat;
+import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +27,8 @@ public record TournamentCreateRequest(
 
         @NotNull(message = "status es obligatorio")
         TournamentStatus status,
+
+        TournamentOperationalCategory operationalCategory,
 
         @Size(max = 4000, message = "description es demasiado larga")
         String description,
