@@ -2,6 +2,8 @@ package com.multideporte.backend.standing.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.standing.dto.request.StandingCreateRequest;
 import com.multideporte.backend.standing.dto.request.StandingRecalculateRequest;
 import com.multideporte.backend.standing.dto.request.StandingUpdateRequest;
@@ -32,22 +34,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class StandingController {
 
     private final StandingService standingService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_STANDINGS)
     public ResponseEntity<ApiResponse<StandingResponse>> create(@Valid @RequestBody StandingCreateRequest request) {
         StandingResponse response = standingService.create(request);
+        operationalAuditService.auditSuccess("STANDING_CREATE", "STANDING", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("STANDING_CREATED", "Standing creado correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.STANDINGS_READ + "')")
     public ResponseEntity<ApiResponse<StandingResponse>> getById(@PathVariable Long id) {
         StandingResponse response = standingService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("STANDING_FOUND", "Standing obtenido correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.STANDINGS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<StandingResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) Long stageId,
@@ -60,28 +66,31 @@ public class StandingController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_STANDINGS)
     public ResponseEntity<ApiResponse<StandingResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody StandingUpdateRequest request
     ) {
         StandingResponse response = standingService.update(id, request);
+        operationalAuditService.auditSuccess("STANDING_UPDATE", "STANDING", id);
         return ResponseEntity.ok(ApiResponse.success("STANDING_UPDATED", "Standing actualizado correctamente", response));
     }
 
     @PostMapping("/recalculate")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_RECALCULATE_STANDINGS)
     public ResponseEntity<ApiResponse<StandingRecalculationResponse>> recalculate(
             @Valid @RequestBody StandingRecalculateRequest request
     ) {
         StandingRecalculationResponse response = standingService.recalculate(request);
+        operationalAuditService.auditSuccess("STANDING_RECALCULATE", "STANDING", request.tournamentId());
         return ResponseEntity.ok(ApiResponse.success("STANDING_RECALCULATED", "Standings recalculados correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_STANDINGS)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         standingService.delete(id);
+        operationalAuditService.auditSuccess("STANDING_DELETE", "STANDING", id);
         return ResponseEntity.ok(ApiResponse.success("STANDING_DELETED", "Standing eliminado correctamente"));
     }
 }

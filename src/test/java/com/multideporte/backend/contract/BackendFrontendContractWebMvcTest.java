@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multideporte.backend.common.exception.GlobalExceptionHandler;
+import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.team.controller.TeamController;
 import com.multideporte.backend.team.dto.response.TeamResponse;
 import com.multideporte.backend.team.service.TeamService;
@@ -44,6 +45,9 @@ class BackendFrontendContractWebMvcTest {
     @Mock
     private TournamentTeamService tournamentTeamService;
 
+    @Mock
+    private OperationalAuditService operationalAuditService;
+
     private MockMvc mockMvc;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -51,9 +55,9 @@ class BackendFrontendContractWebMvcTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new TeamController(teamService),
-                        new TournamentController(tournamentService),
-                        new TournamentTeamController(tournamentTeamService)
+                        new TeamController(teamService, operationalAuditService),
+                        new TournamentController(tournamentService, operationalAuditService),
+                        new TournamentTeamController(tournamentTeamService, operationalAuditService)
                 )
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())

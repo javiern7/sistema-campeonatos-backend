@@ -2,6 +2,8 @@ package com.multideporte.backend.tournament.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.tournament.dto.request.TournamentKnockoutBracketGenerateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.dto.request.TournamentStatusTransitionRequest;
@@ -37,16 +39,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class TournamentController {
 
     private final TournamentService tournamentService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TOURNAMENTS)
     public ResponseEntity<ApiResponse<TournamentResponse>> create(@Valid @RequestBody TournamentCreateRequest request) {
         TournamentResponse response = tournamentService.create(request);
+        operationalAuditService.auditSuccess("TOURNAMENT_CREATE", "TOURNAMENT", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("TOURNAMENT_CREATED", "Torneo creado correctamente", response));
     }
 
     @GetMapping("/operational-summary")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENTS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<TournamentOperationalSummaryResponse>>> getOperationalSummaries(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long sportId,
@@ -71,12 +76,14 @@ public class TournamentController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENTS_READ + "')")
     public ResponseEntity<ApiResponse<TournamentResponse>> getById(@PathVariable Long id) {
         TournamentResponse response = tournamentService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_FOUND", "Torneo obtenido correctamente", response));
     }
 
     @GetMapping("/{id}/operational-summary")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENTS_READ + "')")
     public ResponseEntity<ApiResponse<TournamentOperationalSummaryResponse>> getOperationalSummaryById(@PathVariable Long id) {
         TournamentOperationalSummaryResponse response = tournamentService.getOperationalSummaryById(id);
         return ResponseEntity.ok(ApiResponse.success(
@@ -87,6 +94,7 @@ public class TournamentController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENTS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<TournamentResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long sportId,
@@ -107,29 +115,32 @@ public class TournamentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TOURNAMENTS)
     public ResponseEntity<ApiResponse<TournamentResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody TournamentUpdateRequest request
     ) {
         TournamentResponse response = tournamentService.update(id, request);
+        operationalAuditService.auditSuccess("TOURNAMENT_UPDATE", "TOURNAMENT", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_UPDATED", "Torneo actualizado correctamente", response));
     }
 
     @PostMapping("/{id}/status-transition")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_TRANSITION_TOURNAMENT_STATUS)
     public ResponseEntity<ApiResponse<TournamentResponse>> transitionStatus(
             @PathVariable Long id,
             @Valid @RequestBody TournamentStatusTransitionRequest request
     ) {
         TournamentResponse response = tournamentService.transitionStatus(id, request);
+        operationalAuditService.auditSuccess("TOURNAMENT_STATUS_TRANSITION", "TOURNAMENT", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STATUS_CHANGED", "Estado de torneo actualizado correctamente", response));
     }
 
     @PostMapping("/{id}/progress-to-knockout")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_PROGRESS_TOURNAMENT_TO_KNOCKOUT)
     public ResponseEntity<ApiResponse<TournamentKnockoutProgressionResponse>> progressToKnockout(@PathVariable Long id) {
         TournamentKnockoutProgressionResponse response = tournamentService.progressToKnockout(id);
+        operationalAuditService.auditSuccess("TOURNAMENT_PROGRESS_TO_KNOCKOUT", "TOURNAMENT", id);
         return ResponseEntity.ok(ApiResponse.success(
                 "TOURNAMENT_KNOCKOUT_READY",
                 "Progresion a fase eliminatoria realizada correctamente",
@@ -138,12 +149,13 @@ public class TournamentController {
     }
 
     @PostMapping("/{id}/generate-knockout-bracket")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_GENERATE_TOURNAMENT_KNOCKOUT_BRACKET)
     public ResponseEntity<ApiResponse<TournamentKnockoutBracketResponse>> generateKnockoutBracket(
             @PathVariable Long id,
             @Valid @RequestBody(required = false) TournamentKnockoutBracketGenerateRequest request
     ) {
         TournamentKnockoutBracketResponse response = tournamentService.generateKnockoutBracket(id, request);
+        operationalAuditService.auditSuccess("TOURNAMENT_GENERATE_KNOCKOUT_BRACKET", "TOURNAMENT", id);
         return ResponseEntity.ok(ApiResponse.success(
                 "TOURNAMENT_KNOCKOUT_BRACKET_GENERATED",
                 "Bracket eliminatorio inicial generado correctamente",
@@ -152,9 +164,10 @@ public class TournamentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_TOURNAMENTS)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         tournamentService.delete(id);
+        operationalAuditService.auditSuccess("TOURNAMENT_DELETE", "TOURNAMENT", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_DELETED", "Torneo eliminado correctamente"));
     }
 }

@@ -9,6 +9,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import java.util.HashSet;
+import java.time.OffsetDateTime;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
@@ -39,6 +40,9 @@ public class AppUser {
 
     @Column(name = "status", nullable = false)
     private String status;
+
+    @Column(name = "last_login_at")
+    private OffsetDateTime lastLoginAt;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

@@ -2,6 +2,8 @@ package com.multideporte.backend.tournamentteam.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamCreateRequest;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamUpdateRequest;
 import com.multideporte.backend.tournamentteam.dto.response.TournamentTeamResponse;
@@ -31,24 +33,28 @@ import org.springframework.web.bind.annotation.RestController;
 public class TournamentTeamController {
 
     private final TournamentTeamService tournamentTeamService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TOURNAMENT_TEAMS)
     public ResponseEntity<ApiResponse<TournamentTeamResponse>> create(
             @Valid @RequestBody TournamentTeamCreateRequest request
     ) {
         TournamentTeamResponse response = tournamentTeamService.create(request);
+        operationalAuditService.auditSuccess("TOURNAMENT_TEAM_CREATE", "TOURNAMENT_TEAM", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("TOURNAMENT_TEAM_CREATED", "Inscripcion creada correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENT_TEAMS_READ + "')")
     public ResponseEntity<ApiResponse<TournamentTeamResponse>> getById(@PathVariable Long id) {
         TournamentTeamResponse response = tournamentTeamService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_TEAM_FOUND", "Inscripcion obtenida correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENT_TEAMS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<TournamentTeamResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) Long teamId,
@@ -60,19 +66,21 @@ public class TournamentTeamController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TOURNAMENT_TEAMS)
     public ResponseEntity<ApiResponse<TournamentTeamResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody TournamentTeamUpdateRequest request
     ) {
         TournamentTeamResponse response = tournamentTeamService.update(id, request);
+        operationalAuditService.auditSuccess("TOURNAMENT_TEAM_UPDATE", "TOURNAMENT_TEAM", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_TEAM_UPDATED", "Inscripcion actualizada correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_TOURNAMENT_TEAMS)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         tournamentTeamService.delete(id);
+        operationalAuditService.auditSuccess("TOURNAMENT_TEAM_DELETE", "TOURNAMENT_TEAM", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_TEAM_DELETED", "Inscripcion eliminada correctamente"));
     }
 }

@@ -2,6 +2,8 @@ package com.multideporte.backend.stage.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.stage.dto.request.TournamentStageCreateRequest;
 import com.multideporte.backend.stage.dto.request.TournamentStageUpdateRequest;
 import com.multideporte.backend.stage.dto.response.TournamentStageResponse;
@@ -31,22 +33,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class TournamentStageController {
 
     private final TournamentStageService tournamentStageService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TOURNAMENT_STAGES)
     public ResponseEntity<ApiResponse<TournamentStageResponse>> create(@Valid @RequestBody TournamentStageCreateRequest request) {
         TournamentStageResponse response = tournamentStageService.create(request);
+        operationalAuditService.auditSuccess("TOURNAMENT_STAGE_CREATE", "TOURNAMENT_STAGE", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("TOURNAMENT_STAGE_CREATED", "Etapa creada correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENT_STAGES_READ + "')")
     public ResponseEntity<ApiResponse<TournamentStageResponse>> getById(@PathVariable Long id) {
         TournamentStageResponse response = tournamentStageService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STAGE_FOUND", "Etapa obtenida correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TOURNAMENT_STAGES_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<TournamentStageResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) TournamentStageType stageType,
@@ -58,19 +64,21 @@ public class TournamentStageController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TOURNAMENT_STAGES)
     public ResponseEntity<ApiResponse<TournamentStageResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody TournamentStageUpdateRequest request
     ) {
         TournamentStageResponse response = tournamentStageService.update(id, request);
+        operationalAuditService.auditSuccess("TOURNAMENT_STAGE_UPDATE", "TOURNAMENT_STAGE", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STAGE_UPDATED", "Etapa actualizada correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_TOURNAMENT_STAGES)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         tournamentStageService.delete(id);
+        operationalAuditService.auditSuccess("TOURNAMENT_STAGE_DELETE", "TOURNAMENT_STAGE", id);
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_STAGE_DELETED", "Etapa eliminada correctamente"));
     }
 }

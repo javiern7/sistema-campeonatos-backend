@@ -2,6 +2,8 @@ package com.multideporte.backend.player.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.player.dto.request.PlayerCreateRequest;
 import com.multideporte.backend.player.dto.request.PlayerUpdateRequest;
 import com.multideporte.backend.player.dto.response.PlayerResponse;
@@ -30,22 +32,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_PLAYERS)
     public ResponseEntity<ApiResponse<PlayerResponse>> create(@Valid @RequestBody PlayerCreateRequest request) {
         PlayerResponse response = playerService.create(request);
+        operationalAuditService.auditSuccess("PLAYER_CREATE", "PLAYER", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("PLAYER_CREATED", "Jugador creado correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.PLAYERS_READ + "')")
     public ResponseEntity<ApiResponse<PlayerResponse>> getById(@PathVariable Long id) {
         PlayerResponse response = playerService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("PLAYER_FOUND", "Jugador obtenido correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.PLAYERS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<PlayerResponse>>> getAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String documentType,
@@ -58,19 +64,21 @@ public class PlayerController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_PLAYERS)
     public ResponseEntity<ApiResponse<PlayerResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody PlayerUpdateRequest request
     ) {
         PlayerResponse response = playerService.update(id, request);
+        operationalAuditService.auditSuccess("PLAYER_UPDATE", "PLAYER", id);
         return ResponseEntity.ok(ApiResponse.success("PLAYER_UPDATED", "Jugador actualizado correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_PLAYERS)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         playerService.delete(id);
+        operationalAuditService.auditSuccess("PLAYER_DELETE", "PLAYER", id);
         return ResponseEntity.ok(ApiResponse.success("PLAYER_DELETED", "Jugador eliminado correctamente"));
     }
 }

@@ -2,6 +2,8 @@ package com.multideporte.backend.team.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.team.dto.request.TeamCreateRequest;
 import com.multideporte.backend.team.dto.request.TeamUpdateRequest;
 import com.multideporte.backend.team.dto.response.TeamResponse;
@@ -30,22 +32,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class TeamController {
 
     private final TeamService teamService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TEAMS)
     public ResponseEntity<ApiResponse<TeamResponse>> create(@Valid @RequestBody TeamCreateRequest request) {
         TeamResponse response = teamService.create(request);
+        operationalAuditService.auditSuccess("TEAM_CREATE", "TEAM", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("TEAM_CREATED", "Equipo creado correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TEAMS_READ + "')")
     public ResponseEntity<ApiResponse<TeamResponse>> getById(@PathVariable Long id) {
         TeamResponse response = teamService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("TEAM_FOUND", "Equipo obtenido correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.TEAMS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<TeamResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String code,
@@ -57,19 +63,21 @@ public class TeamController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_TEAMS)
     public ResponseEntity<ApiResponse<TeamResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody TeamUpdateRequest request
     ) {
         TeamResponse response = teamService.update(id, request);
+        operationalAuditService.auditSuccess("TEAM_UPDATE", "TEAM", id);
         return ResponseEntity.ok(ApiResponse.success("TEAM_UPDATED", "Equipo actualizado correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_TEAMS)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         teamService.delete(id);
+        operationalAuditService.auditSuccess("TEAM_DELETE", "TEAM", id);
         return ResponseEntity.ok(ApiResponse.success("TEAM_DELETED", "Equipo eliminado correctamente"));
     }
 }

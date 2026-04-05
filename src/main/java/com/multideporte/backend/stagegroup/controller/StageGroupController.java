@@ -2,6 +2,8 @@ package com.multideporte.backend.stagegroup.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.stagegroup.dto.request.StageGroupCreateRequest;
 import com.multideporte.backend.stagegroup.dto.request.StageGroupUpdateRequest;
 import com.multideporte.backend.stagegroup.dto.response.StageGroupResponse;
@@ -30,22 +32,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class StageGroupController {
 
     private final StageGroupService stageGroupService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_STAGE_GROUPS)
     public ResponseEntity<ApiResponse<StageGroupResponse>> create(@Valid @RequestBody StageGroupCreateRequest request) {
         StageGroupResponse response = stageGroupService.create(request);
+        operationalAuditService.auditSuccess("STAGE_GROUP_CREATE", "STAGE_GROUP", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("STAGE_GROUP_CREATED", "Grupo creado correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.STAGE_GROUPS_READ + "')")
     public ResponseEntity<ApiResponse<StageGroupResponse>> getById(@PathVariable Long id) {
         StageGroupResponse response = stageGroupService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("STAGE_GROUP_FOUND", "Grupo obtenido correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.STAGE_GROUPS_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<StageGroupResponse>>> getAll(
             @RequestParam(required = false) Long stageId,
             @RequestParam(required = false) String code,
@@ -56,19 +62,21 @@ public class StageGroupController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_STAGE_GROUPS)
     public ResponseEntity<ApiResponse<StageGroupResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody StageGroupUpdateRequest request
     ) {
         StageGroupResponse response = stageGroupService.update(id, request);
+        operationalAuditService.auditSuccess("STAGE_GROUP_UPDATE", "STAGE_GROUP", id);
         return ResponseEntity.ok(ApiResponse.success("STAGE_GROUP_UPDATED", "Grupo actualizado correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_STAGE_GROUPS)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         stageGroupService.delete(id);
+        operationalAuditService.auditSuccess("STAGE_GROUP_DELETE", "STAGE_GROUP", id);
         return ResponseEntity.ok(ApiResponse.success("STAGE_GROUP_DELETED", "Grupo eliminado correctamente"));
     }
 }

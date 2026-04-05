@@ -2,6 +2,8 @@ package com.multideporte.backend.match.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.match.dto.request.MatchGameCreateRequest;
 import com.multideporte.backend.match.dto.request.MatchGameUpdateRequest;
 import com.multideporte.backend.match.dto.response.MatchGameResponse;
@@ -31,22 +33,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class MatchGameController {
 
     private final MatchGameService matchGameService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_MATCHES)
     public ResponseEntity<ApiResponse<MatchGameResponse>> create(@Valid @RequestBody MatchGameCreateRequest request) {
         MatchGameResponse response = matchGameService.create(request);
+        operationalAuditService.auditSuccess("MATCH_CREATE", "MATCH", response.id());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("MATCH_CREATED", "Partido creado correctamente", response));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.MATCHES_READ + "')")
     public ResponseEntity<ApiResponse<MatchGameResponse>> getById(@PathVariable Long id) {
         MatchGameResponse response = matchGameService.getById(id);
         return ResponseEntity.ok(ApiResponse.success("MATCH_FOUND", "Partido obtenido correctamente", response));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('" + SecurityPermissions.MATCHES_READ + "')")
     public ResponseEntity<ApiResponse<PageResponse<MatchGameResponse>>> getAll(
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) Long stageId,
@@ -59,19 +65,21 @@ public class MatchGameController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TOURNAMENT_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_MATCHES)
     public ResponseEntity<ApiResponse<MatchGameResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody MatchGameUpdateRequest request
     ) {
         MatchGameResponse response = matchGameService.update(id, request);
+        operationalAuditService.auditSuccess("MATCH_UPDATE", "MATCH", id);
         return ResponseEntity.ok(ApiResponse.success("MATCH_UPDATED", "Partido actualizado correctamente", response));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize(SecurityPermissions.CAN_DELETE_MATCHES)
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         matchGameService.delete(id);
+        operationalAuditService.auditSuccess("MATCH_DELETE", "MATCH", id);
         return ResponseEntity.ok(ApiResponse.success("MATCH_DELETED", "Partido eliminado correctamente"));
     }
 }

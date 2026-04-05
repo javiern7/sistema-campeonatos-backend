@@ -9,6 +9,10 @@ public record AuthSessionResponse(
         String firstName,
         String lastName,
         String fullName,
+        String authenticationScheme,
+        String sessionStrategy,
+        Long sessionId,
+        java.time.OffsetDateTime accessTokenExpiresAt,
         List<String> roles,
         List<String> permissions
 ) {
