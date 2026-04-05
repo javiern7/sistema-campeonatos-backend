@@ -16,8 +16,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +28,7 @@ public class AuthTokenService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    private final AuthenticationManager authenticationManager;
+    private final AuthenticationConfiguration authenticationConfiguration;
     private final AppUserRepository appUserRepository;
     private final AppUserSessionRepository appUserSessionRepository;
     private final AuthorizationCapabilityService authorizationCapabilityService;
@@ -36,7 +36,7 @@ public class AuthTokenService {
 
     @Transactional
     public AuthTokenResponse login(String username, String password, String ipAddress, String userAgent) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
+        authenticateCredentials(username, password);
 
         AppUser user = appUserRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException("Usuario autenticado no encontrado"));
@@ -167,6 +167,15 @@ public class AuthTokenService {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private void authenticateCredentials(String username, String password) {
+        try {
+            authenticationConfiguration.getAuthenticationManager()
+                    .authenticate(new UsernamePasswordAuthenticationToken(username, password));
+        } catch (Exception ex) {
+            throw new BusinessException("Credenciales invalidas");
+        }
     }
 
     private record SessionTokens(String accessToken, String refreshToken) {
