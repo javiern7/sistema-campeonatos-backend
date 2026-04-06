@@ -13,16 +13,16 @@ public interface OperationalAuditEventRepository
     @Query("""
             select count(distinct e.actorUsername)
             from OperationalAuditEvent e
-            where (:from is null or e.occurredAt >= :from)
-              and (:to is null or e.occurredAt <= :to)
+            where e.occurredAt >= :from
+              and e.occurredAt <= :to
             """)
     long countDistinctActors(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
 
     @Query("""
             select new com.multideporte.backend.security.audit.OperationalAuditActionCountProjection(e.action, count(e))
             from OperationalAuditEvent e
-            where (:from is null or e.occurredAt >= :from)
-              and (:to is null or e.occurredAt <= :to)
+            where e.occurredAt >= :from
+              and e.occurredAt <= :to
             group by e.action
             order by count(e) desc, e.action asc
             """)

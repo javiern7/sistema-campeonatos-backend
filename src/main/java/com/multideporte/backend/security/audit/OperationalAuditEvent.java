@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import lombok.Getter;
@@ -45,7 +44,6 @@ public class OperationalAuditEvent {
     @Column(name = "result", nullable = false, length = 20)
     private OperationalAuditResult result;
 
-    @Lob
-    @Column(name = "context_json")
+    @Column(name = "context_json", columnDefinition = "text")
     private String contextJson;
 }

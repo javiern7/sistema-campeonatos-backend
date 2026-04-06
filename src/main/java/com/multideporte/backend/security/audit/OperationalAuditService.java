@@ -9,6 +9,7 @@ import com.multideporte.backend.security.auth.AuthSessionAuthenticationDetails;
 import com.multideporte.backend.security.user.CurrentUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @RequiredArgsConstructor
 @Slf4j
 public class OperationalAuditService {
+
+    private static final OffsetDateTime MIN_OCCURRENCE = OffsetDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+    private static final OffsetDateTime MAX_OCCURRENCE = OffsetDateTime.of(9999, 12, 31, 23, 59, 59, 0, ZoneOffset.UTC);
 
     private final CurrentUserService currentUserService;
     private final OperationalAuditEventRepository operationalAuditEventRepository;
@@ -109,6 +113,9 @@ public class OperationalAuditService {
     }
 
     public OperationalActivitySummaryResponse getActivitySummary(OffsetDateTime from, OffsetDateTime to) {
+        OffsetDateTime effectiveFrom = from == null ? MIN_OCCURRENCE : from;
+        OffsetDateTime effectiveTo = to == null ? MAX_OCCURRENCE : to;
+
         long totalEvents = operationalAuditEventRepository.count(
                 OperationalAuditSpecifications.byFilters(null, null, null, null, from, to)
         );
@@ -121,9 +128,9 @@ public class OperationalAuditService {
         long failedEvents = operationalAuditEventRepository.count(
                 OperationalAuditSpecifications.byFilters(null, null, null, OperationalAuditResult.FAILED, from, to)
         );
-        long uniqueActors = operationalAuditEventRepository.countDistinctActors(from, to);
+        long uniqueActors = operationalAuditEventRepository.countDistinctActors(effectiveFrom, effectiveTo);
         List<OperationalActivitySummaryResponse.ActionCountResponse> topActions = operationalAuditEventRepository
-                .findActionCounts(from, to, PageRequest.of(0, 10))
+                .findActionCounts(effectiveFrom, effectiveTo, PageRequest.of(0, 10))
                 .stream()
                 .map(item -> new OperationalActivitySummaryResponse.ActionCountResponse(item.action(), item.total()))
                 .toList();
