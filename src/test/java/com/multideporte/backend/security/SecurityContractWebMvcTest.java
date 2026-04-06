@@ -11,7 +11,11 @@ import com.multideporte.backend.match.controller.MatchGameController;
 import com.multideporte.backend.match.dto.response.MatchGameResponse;
 import com.multideporte.backend.match.entity.MatchGameStatus;
 import com.multideporte.backend.match.service.MatchGameService;
+import com.multideporte.backend.security.audit.OperationalAuditController;
+import com.multideporte.backend.security.audit.OperationalAuditResult;
 import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.audit.dto.OperationalActivitySummaryResponse;
+import com.multideporte.backend.security.audit.dto.OperationalAuditEventResponse;
 import com.multideporte.backend.security.auth.AuthSessionController;
 import com.multideporte.backend.security.auth.AuthTokenResponse;
 import com.multideporte.backend.security.auth.AuthTokenService;
@@ -54,7 +58,8 @@ import org.springframework.test.web.servlet.MockMvc;
         TeamController.class,
         MatchGameController.class,
         TournamentController.class,
-        AuthSessionController.class
+        AuthSessionController.class,
+        OperationalAuditController.class
 })
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "app.cors.allowed-origins=http://localhost:4200")
@@ -436,4 +441,71 @@ class SecurityContractWebMvcTest {
                 .andExpect(jsonPath("$.code").value("TOURNAMENT_STATUS_CHANGED"))
                 .andExpect(jsonPath("$.data.id").value(10));
     }
+    @Test
+    void shouldAllowReadingOperationalAuditEventsWithExplicitPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                26L,
+                "auditor",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_TOURNAMENT_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("audit-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        92L,
+                        OffsetDateTime.parse("2026-04-05T10:15:30Z")
+                )
+        ));
+        when(operationalAuditService.getRecentAuditEvents(5)).thenReturn(List.of(
+                new OperationalAuditEventResponse(
+                        1L,
+                        26L,
+                        "auditor",
+                        "TOURNAMENT_STATUS_TRANSITION",
+                        "TOURNAMENT",
+                        "10",
+                        OffsetDateTime.parse("2026-04-05T10:16:00Z"),
+                        OperationalAuditResult.SUCCESS,
+                        java.util.Map.of("requestPath", "/operations/audit-events/recent")
+                )
+        ));
+
+        mockMvc.perform(get("/operations/audit-events/recent")
+                        .param("limit", "5")
+                        .header("Authorization", "Bearer audit-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_AUDIT_EVENT_RECENT"))
+                .andExpect(jsonPath("$.data[0].action").value("TOURNAMENT_STATUS_TRANSITION"))
+                .andExpect(jsonPath("$.data[0].result").value("SUCCESS"));
+    }
+
+    @Test
+    void shouldDenyOperationalAuditReadWithoutPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                27L,
+                "operator",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_OPERATOR"),
+                        new SimpleGrantedAuthority(SecurityPermissions.MATCHES_MANAGE)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("operator-no-audit-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        93L,
+                        OffsetDateTime.parse("2026-04-05T10:15:30Z")
+                )
+        ));
+
+        mockMvc.perform(get("/operations/audit-events/recent")
+                        .header("Authorization", "Bearer operator-no-audit-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
 }
+
+

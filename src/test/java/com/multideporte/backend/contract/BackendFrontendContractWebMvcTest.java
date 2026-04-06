@@ -54,12 +54,12 @@ class BackendFrontendContractWebMvcTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(
+                mockMvc = MockMvcBuilders.standaloneSetup(
                         new TeamController(teamService, operationalAuditService),
                         new TournamentController(tournamentService, operationalAuditService),
                         new TournamentTeamController(tournamentTeamService, operationalAuditService)
                 )
-                .setControllerAdvice(new GlobalExceptionHandler())
+                .setControllerAdvice(new GlobalExceptionHandler(operationalAuditService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }

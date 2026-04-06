@@ -3,6 +3,7 @@ package com.multideporte.backend.security.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.config.CorsProperties;
+import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.security.auth.AuthSessionProperties;
 import com.multideporte.backend.security.auth.BearerTokenAuthenticationFilter;
 import com.multideporte.backend.security.user.DatabaseUserDetailsService;
@@ -37,6 +38,7 @@ public class SecurityConfig {
     private final CorsProperties corsProperties;
     private final ObjectMapper objectMapper;
     private final BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter;
+    private final OperationalAuditService operationalAuditService;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -79,8 +81,21 @@ public class SecurityConfig {
 
     @Bean
     AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) ->
+        return (request, response, accessDeniedException) -> {
+            operationalAuditService.auditDenied(
+                    "SECURITY_ACCESS_DENIED",
+                    "HTTP_ENDPOINT",
+                    request.getRequestURI(),
+                    null,
+                    null,
+                    "FORBIDDEN",
+                    java.util.Map.of(
+                            "requestPath", request.getRequestURI(),
+                            "httpMethod", request.getMethod()
+                    )
+            );
                 writeErrorResponse(response, HttpSecurityResponse.FORBIDDEN.status, "FORBIDDEN", "No tienes permisos para esta operacion");
+        };
     }
 
     @Bean

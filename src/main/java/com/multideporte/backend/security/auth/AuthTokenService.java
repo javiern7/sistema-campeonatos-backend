@@ -1,6 +1,7 @@
 package com.multideporte.backend.security.auth;
 
 import com.multideporte.backend.common.exception.BusinessException;
+import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.security.user.AppRole;
 import com.multideporte.backend.security.user.AppUser;
 import com.multideporte.backend.security.user.AppUserRepository;
@@ -12,6 +13,7 @@ import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,6 +35,7 @@ public class AuthTokenService {
     private final AppUserSessionRepository appUserSessionRepository;
     private final AuthorizationCapabilityService authorizationCapabilityService;
     private final AuthSessionProperties authSessionProperties;
+    private final OperationalAuditService operationalAuditService;
 
     @Transactional
     public AuthTokenResponse login(String username, String password, String ipAddress, String userAgent) {
@@ -75,6 +78,14 @@ public class AuthTokenService {
         session.setAccessTokenExpiresAt(now.plus(authSessionProperties.getAccessTokenTtl()));
         session.setRefreshTokenExpiresAt(now.plus(authSessionProperties.getRefreshTokenTtl()));
 
+        operationalAuditService.auditSuccess(
+                "AUTH_REFRESH_SUCCESS",
+                "AUTH_SESSION",
+                session.getId(),
+                session.getUser().getId(),
+                session.getUser().getUsername(),
+                java.util.Map.of("authenticationScheme", session.getAuthenticationScheme())
+        );
         return toTokenResponse(session, rotatedTokens);
     }
 
@@ -86,7 +97,17 @@ public class AuthTokenService {
 
         appUserSessionRepository.findByAccessTokenHash(hashToken(accessToken))
                 .filter(session -> session.getRevokedAt() == null)
-                .ifPresent(session -> session.setRevokedAt(OffsetDateTime.now()));
+                .ifPresent(session -> {
+                    session.setRevokedAt(OffsetDateTime.now());
+                    operationalAuditService.auditSuccess(
+                            "AUTH_LOGOUT_SUCCESS",
+                            "AUTH_SESSION",
+                            session.getId(),
+                            session.getUser().getId(),
+                            session.getUser().getUsername(),
+                            java.util.Map.of("authenticationScheme", session.getAuthenticationScheme())
+                    );
+                });
     }
 
     @Transactional
@@ -174,6 +195,15 @@ public class AuthTokenService {
             authenticationConfiguration.getAuthenticationManager()
                     .authenticate(new UsernamePasswordAuthenticationToken(username, password));
         } catch (Exception ex) {
+            operationalAuditService.auditFailure(
+                    "AUTH_LOGIN_FAILED",
+                    "AUTH_SESSION",
+                    null,
+                    null,
+                    username,
+                    "INVALID_CREDENTIALS",
+                    Map.of()
+            );
             throw new BusinessException("Credenciales invalidas");
         }
     }

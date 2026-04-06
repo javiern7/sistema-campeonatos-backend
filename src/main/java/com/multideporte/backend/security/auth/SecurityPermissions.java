@@ -17,6 +17,7 @@ public final class SecurityPermissions {
     public static final String MATCHES_READ = "matches:read";
     public static final String STANDINGS_READ = "standings:read";
     public static final String AUTH_SESSION_READ = "auth:session:read";
+    public static final String OPERATIONAL_AUDIT_READ = "operations:audit:read";
 
     public static final String TEAMS_MANAGE = "teams:manage";
     public static final String PLAYERS_MANAGE = "players:manage";
@@ -44,6 +45,7 @@ public final class SecurityPermissions {
     public static final String STANDINGS_RECALCULATE = "standings:recalculate";
 
     public static final String CAN_READ_AUTH_SESSION = "hasAuthority('" + AUTH_SESSION_READ + "')";
+    public static final String CAN_READ_OPERATIONAL_AUDIT = "hasAuthority('" + OPERATIONAL_AUDIT_READ + "')";
     public static final String CAN_MANAGE_TEAMS = "hasAuthority('" + TEAMS_MANAGE + "')";
     public static final String CAN_DELETE_TEAMS = "hasAuthority('" + TEAMS_DELETE + "')";
     public static final String CAN_MANAGE_PLAYERS = "hasAuthority('" + PLAYERS_MANAGE + "')";

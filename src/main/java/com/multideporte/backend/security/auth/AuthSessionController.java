@@ -2,6 +2,7 @@ package com.multideporte.backend.security.auth;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
+import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.security.user.AppUser;
 import com.multideporte.backend.security.user.AppUserRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ public class AuthSessionController {
     private final AppUserRepository appUserRepository;
     private final AuthorizationCapabilityService authorizationCapabilityService;
     private final AuthTokenService authTokenService;
+    private final OperationalAuditService operationalAuditService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> login(
@@ -36,6 +38,18 @@ public class AuthSessionController {
                 request.password(),
                 httpServletRequest.getRemoteAddr(),
                 httpServletRequest.getHeader("User-Agent")
+        );
+        operationalAuditService.auditSuccess(
+                "AUTH_LOGIN_SUCCESS",
+                "AUTH_SESSION",
+                response.sessionId(),
+                null,
+                request.username(),
+                java.util.Map.of(
+                        "authenticationScheme", response.authenticationScheme(),
+                        "requestPath", httpServletRequest.getRequestURI(),
+                        "httpMethod", httpServletRequest.getMethod()
+                )
         );
         return ResponseEntity.ok(ApiResponse.success("AUTH_LOGIN_SUCCESS", "Sesion iniciada correctamente", response));
     }

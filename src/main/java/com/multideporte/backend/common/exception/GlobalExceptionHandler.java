@@ -1,10 +1,12 @@
 package com.multideporte.backend.common.exception;
 
 import com.multideporte.backend.common.api.ApiResponse;
+import com.multideporte.backend.security.audit.OperationalAuditService;
 import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +21,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final OperationalAuditService operationalAuditService;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFound(ResourceNotFoundException ex) {
@@ -100,6 +105,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(Exception ex) {
+        operationalAuditService.auditDenied(
+                "SECURITY_ACCESS_DENIED",
+                "HTTP_ENDPOINT",
+                null,
+                null,
+                null,
+                "FORBIDDEN",
+                Map.of()
+        );
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("FORBIDDEN", "No tienes permisos para esta operacion"));
     }

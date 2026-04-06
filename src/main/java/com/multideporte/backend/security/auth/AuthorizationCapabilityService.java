@@ -21,7 +21,8 @@ public class AuthorizationCapabilityService {
             SecurityPermissions.ROSTERS_READ,
             SecurityPermissions.MATCHES_READ,
             SecurityPermissions.STANDINGS_READ,
-            SecurityPermissions.AUTH_SESSION_READ
+            SecurityPermissions.AUTH_SESSION_READ,
+            SecurityPermissions.OPERATIONAL_AUDIT_READ
     );
 
     private static final List<String> ADMIN_MANAGE_PERMISSIONS = List.of(
