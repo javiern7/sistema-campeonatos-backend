@@ -21,8 +21,7 @@ public class AuthorizationCapabilityService {
             SecurityPermissions.ROSTERS_READ,
             SecurityPermissions.MATCHES_READ,
             SecurityPermissions.STANDINGS_READ,
-            SecurityPermissions.AUTH_SESSION_READ,
-            SecurityPermissions.OPERATIONAL_AUDIT_READ
+            SecurityPermissions.AUTH_SESSION_READ
     );
 
     private static final List<String> ADMIN_MANAGE_PERMISSIONS = List.of(
@@ -66,6 +65,7 @@ public class AuthorizationCapabilityService {
 
         if (roles.contains("SUPER_ADMIN") || roles.contains("TOURNAMENT_ADMIN")) {
             permissions.addAll(ADMIN_MANAGE_PERMISSIONS);
+            permissions.add(SecurityPermissions.OPERATIONAL_AUDIT_READ);
         }
 
         if (roles.contains("OPERATOR")) {
