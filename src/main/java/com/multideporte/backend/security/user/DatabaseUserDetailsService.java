@@ -32,11 +32,9 @@ public class DatabaseUserDetailsService implements UserDetailsService {
                 user.getPasswordHash(),
                 Stream.concat(
                                 user.getRoles()
-                                        .stream()
+                        .stream()
                                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode())),
-                                authorizationCapabilityService.resolvePermissions(
-                                                user.getRoles().stream().map(AppRole::getCode).toList()
-                                        )
+                                authorizationCapabilityService.resolvePermissions(user.getRoles())
                                         .stream()
                                         .map(SimpleGrantedAuthority::new)
                         )

@@ -21,7 +21,10 @@ import com.multideporte.backend.security.auth.AuthTokenResponse;
 import com.multideporte.backend.security.auth.AuthTokenService;
 import com.multideporte.backend.security.auth.AuthenticatedTokenSession;
 import com.multideporte.backend.security.auth.AuthorizationCapabilityService;
+import com.multideporte.backend.security.auth.PermissionResolutionDiagnosticsService;
 import com.multideporte.backend.security.auth.SecurityPermissions;
+import com.multideporte.backend.security.auth.dto.PermissionResolutionSummaryResponse;
+import com.multideporte.backend.security.auth.dto.RolePermissionResolutionResponse;
 import com.multideporte.backend.security.config.SecurityConfig;
 import com.multideporte.backend.security.user.AppRole;
 import com.multideporte.backend.security.user.AppUser;
@@ -84,6 +87,9 @@ class SecurityContractWebMvcTest {
     private OperationalAuditService operationalAuditService;
 
     @MockBean
+    private PermissionResolutionDiagnosticsService permissionResolutionDiagnosticsService;
+
+    @MockBean
     private DatabaseUserDetailsService databaseUserDetailsService;
 
     @MockBean
@@ -133,8 +139,8 @@ class SecurityContractWebMvcTest {
                         .contentType("application/json")
                         .content("""
                                 {
-                                  \"username\": \"devadmin\",
-                                  \"password\": \"admin123\"
+                                  "username": "devadmin",
+                                  "password": "admin123"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -163,7 +169,7 @@ class SecurityContractWebMvcTest {
                         .contentType("application/json")
                         .content("""
                                 {
-                                  \"refreshToken\": \"refresh-token-123\"
+                                  "refreshToken": "refresh-token-123"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -264,12 +270,12 @@ class SecurityContractWebMvcTest {
                         .contentType("application/json")
                         .content("""
                                 {
-                                  \"tournamentId\": 10,
-                                  \"roundNumber\": 1,
-                                  \"matchdayNumber\": 1,
-                                  \"homeTournamentTeamId\": 20,
-                                  \"awayTournamentTeamId\": 21,
-                                  \"status\": \"SCHEDULED\"
+                                  "tournamentId": 10,
+                                  "roundNumber": 1,
+                                  "matchdayNumber": 1,
+                                  "homeTournamentTeamId": 20,
+                                  "awayTournamentTeamId": 21,
+                                  "status": "SCHEDULED"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -301,10 +307,10 @@ class SecurityContractWebMvcTest {
                         .contentType("application/json")
                         .content("""
                                 {
-                                  \"name\": \"Equipo Operador\",
-                                  \"shortName\": \"EO\",
-                                  \"code\": \"EO\",
-                                  \"active\": true
+                                  "name": "Equipo Operador",
+                                  "shortName": "EO",
+                                  "code": "EO",
+                                  "active": true
                                 }
                                 """))
                 .andExpect(status().isForbidden())
@@ -368,7 +374,7 @@ class SecurityContractWebMvcTest {
         operator.setRoles(Set.of(operatorRole));
 
         when(appUserRepository.findByUsername("operator")).thenReturn(Optional.of(operator));
-        when(authorizationCapabilityService.resolvePermissions(List.of("OPERATOR"))).thenReturn(List.of(
+        when(authorizationCapabilityService.resolvePermissions(org.mockito.ArgumentMatchers.anyCollection())).thenReturn(List.of(
                 SecurityPermissions.AUTH_SESSION_READ,
                 SecurityPermissions.MATCHES_MANAGE,
                 SecurityPermissions.ROSTERS_MANAGE,
@@ -434,7 +440,7 @@ class SecurityContractWebMvcTest {
                         .contentType("application/json")
                         .content("""
                                 {
-                                  \"targetStatus\": \"OPEN\"
+                                  "targetStatus": "OPEN"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -506,6 +512,74 @@ class SecurityContractWebMvcTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
+    @Test
+    void shouldExposePermissionResolutionSummaryForAdministrativeAuditUsers() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                28L,
+                "auditor",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_TOURNAMENT_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("audit-summary-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        94L,
+                        OffsetDateTime.parse("2026-04-05T10:15:30Z")
+                )
+        ));
+        when(permissionResolutionDiagnosticsService.getSummary()).thenReturn(
+                new PermissionResolutionSummaryResponse(
+                        OffsetDateTime.parse("2026-04-07T12:00:00Z"),
+                        true,
+                        1,
+                        List.of("LEGACY_ROLE"),
+                        List.of(
+                                new RolePermissionResolutionResponse(
+                                        "OPERATOR",
+                                        4,
+                                        4,
+                                        false,
+                                        List.of(
+                                                SecurityPermissions.AUTH_SESSION_READ,
+                                                SecurityPermissions.DASHBOARD_READ,
+                                                SecurityPermissions.MATCHES_MANAGE,
+                                                SecurityPermissions.ROSTERS_MANAGE
+                                        ),
+                                        List.of(
+                                                SecurityPermissions.AUTH_SESSION_READ,
+                                                SecurityPermissions.DASHBOARD_READ,
+                                                SecurityPermissions.MATCHES_MANAGE,
+                                                SecurityPermissions.ROSTERS_MANAGE
+                                        )
+                                ),
+                                new RolePermissionResolutionResponse(
+                                        "LEGACY_ROLE",
+                                        0,
+                                        1,
+                                        true,
+                                        List.of(),
+                                        List.of(SecurityPermissions.DASHBOARD_READ)
+                                )
+                        )
+                )
+        );
+
+        mockMvc.perform(get("/operations/permission-resolution-summary")
+                        .header("Authorization", "Bearer audit-summary-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("PERMISSION_RESOLUTION_SUMMARY"))
+                .andExpect(jsonPath("$.data.fallbackActive").value(true))
+                .andExpect(jsonPath("$.data.rolesUsingFallback[0]").value("LEGACY_ROLE"))
+                .andExpect(jsonPath("$.data.roles[0].roleCode").value("OPERATOR"));
+    }
 }
+
+
+
+
+
 
 

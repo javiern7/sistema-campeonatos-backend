@@ -2,7 +2,6 @@ package com.multideporte.backend.security.auth;
 
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.security.audit.OperationalAuditService;
-import com.multideporte.backend.security.user.AppRole;
 import com.multideporte.backend.security.user.AppUser;
 import com.multideporte.backend.security.user.AppUserRepository;
 import com.multideporte.backend.security.user.AuthenticatedUser;
@@ -125,16 +124,12 @@ public class AuthTokenService {
     }
 
     public AuthenticatedUser toAuthenticatedUser(AppUser user) {
-        List<String> roleCodes = user.getRoles().stream()
-                .map(AppRole::getCode)
-                .toList();
-
         Set<SimpleGrantedAuthority> authorities = user.getRoles()
                 .stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode()))
                 .collect(Collectors.toSet());
 
-        authorizationCapabilityService.resolvePermissions(roleCodes)
+        authorizationCapabilityService.resolvePermissions(user.getRoles())
                 .stream()
                 .map(SimpleGrantedAuthority::new)
                 .forEach(authorities::add);

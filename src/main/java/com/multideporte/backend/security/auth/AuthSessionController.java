@@ -93,7 +93,7 @@ public class AuthSessionController {
                 authenticationDetails.sessionId(),
                 authenticationDetails.accessTokenExpiresAt(),
                 roles,
-                authorizationCapabilityService.resolvePermissions(roles)
+                authorizationCapabilityService.resolvePermissions(user.getRoles())
         );
 
         return ResponseEntity.ok(ApiResponse.success("AUTH_SESSION", "Sesion obtenida correctamente", response));

@@ -1,8 +1,11 @@
 package com.multideporte.backend.security.auth;
 
+import com.multideporte.backend.security.user.AppPermission;
+import com.multideporte.backend.security.user.AppRole;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
@@ -58,24 +61,50 @@ public class AuthorizationCapabilityService {
             SecurityPermissions.STANDINGS_RECALCULATE
     );
 
-    public List<String> resolvePermissions(Collection<String> roles) {
+    private static final Map<String, List<String>> ROLE_BASELINES = Map.of(
+            "SUPER_ADMIN",
+            merge(
+                    BASE_READ_PERMISSIONS,
+                    ADMIN_MANAGE_PERMISSIONS,
+                    SUPER_ADMIN_DELETE_PERMISSIONS,
+                    List.of(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+            ),
+            "TOURNAMENT_ADMIN",
+            merge(
+                    BASE_READ_PERMISSIONS,
+                    ADMIN_MANAGE_PERMISSIONS,
+                    List.of(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+            ),
+            "OPERATOR",
+            merge(BASE_READ_PERMISSIONS, OPERATOR_MANAGE_PERMISSIONS)
+    );
+
+    public List<String> resolvePermissions(Collection<AppRole> roles) {
         Set<String> permissions = new LinkedHashSet<>();
 
-        permissions.addAll(BASE_READ_PERMISSIONS);
-
-        if (roles.contains("SUPER_ADMIN") || roles.contains("TOURNAMENT_ADMIN")) {
-            permissions.addAll(ADMIN_MANAGE_PERMISSIONS);
-            permissions.add(SecurityPermissions.OPERATIONAL_AUDIT_READ);
-        }
-
-        if (roles.contains("OPERATOR")) {
-            permissions.addAll(OPERATOR_MANAGE_PERMISSIONS);
-        }
-
-        if (roles.contains("SUPER_ADMIN")) {
-            permissions.addAll(SUPER_ADMIN_DELETE_PERMISSIONS);
-        }
+        roles.forEach(role -> permissions.addAll(resolvePermissionsForRole(role)));
 
         return permissions.stream().sorted().toList();
+    }
+
+    private Set<String> resolvePermissionsForRole(AppRole role) {
+        Set<String> permissionsFromDatabase = role.getPermissions().stream()
+                .map(AppPermission::getCode)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+
+        if (!permissionsFromDatabase.isEmpty()) {
+            return permissionsFromDatabase;
+        }
+
+        return new LinkedHashSet<>(ROLE_BASELINES.getOrDefault(role.getCode(), List.of()));
+    }
+
+    @SafeVarargs
+    private static List<String> merge(List<String>... permissionGroups) {
+        Set<String> merged = new LinkedHashSet<>();
+        for (List<String> permissionGroup : permissionGroups) {
+            merged.addAll(permissionGroup);
+        }
+        return List.copyOf(merged);
     }
 }
