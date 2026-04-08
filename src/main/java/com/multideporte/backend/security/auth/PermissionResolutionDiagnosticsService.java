@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +17,7 @@ public class PermissionResolutionDiagnosticsService {
     private final AppRoleRepository appRoleRepository;
     private final AuthorizationCapabilityService authorizationCapabilityService;
 
+    @Transactional(readOnly = true)
     public PermissionResolutionSummaryResponse getSummary() {
         List<RolePermissionResolutionResponse> roles = appRoleRepository.findAllByOrderByCodeAsc()
                 .stream()
