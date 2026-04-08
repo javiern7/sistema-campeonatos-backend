@@ -67,7 +67,10 @@ public class AuthorizationCapabilityService {
                     BASE_READ_PERMISSIONS,
                     ADMIN_MANAGE_PERMISSIONS,
                     SUPER_ADMIN_DELETE_PERMISSIONS,
-                    List.of(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                    List.of(
+                            SecurityPermissions.OPERATIONAL_AUDIT_READ,
+                            SecurityPermissions.PERMISSION_GOVERNANCE_MANAGE
+                    )
             ),
             "TOURNAMENT_ADMIN",
             merge(

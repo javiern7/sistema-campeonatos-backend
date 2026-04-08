@@ -51,3 +51,8 @@ app:
     session:
       access-token-ttl: 8h
       refresh-token-ttl: 7d
+  permission-governance:
+    write-enabled: ${APP_PERMISSION_GOVERNANCE_WRITE_ENABLED:false}
+    mutable-roles:
+      - TOURNAMENT_ADMIN
+      - OPERATOR

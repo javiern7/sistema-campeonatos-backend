@@ -26,6 +26,11 @@ import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.security.auth.dto.PermissionResolutionSummaryResponse;
 import com.multideporte.backend.security.auth.dto.RolePermissionResolutionResponse;
 import com.multideporte.backend.security.config.SecurityConfig;
+import com.multideporte.backend.security.governance.PermissionGovernanceController;
+import com.multideporte.backend.security.governance.PermissionGovernanceService;
+import com.multideporte.backend.security.governance.dto.ManagedPermissionResponse;
+import com.multideporte.backend.security.governance.dto.ManagedRolePermissionResponse;
+import com.multideporte.backend.security.governance.dto.PermissionGovernanceSummaryResponse;
 import com.multideporte.backend.security.user.AppRole;
 import com.multideporte.backend.security.user.AppUser;
 import com.multideporte.backend.security.user.AppUserRepository;
@@ -62,7 +67,8 @@ import org.springframework.test.web.servlet.MockMvc;
         MatchGameController.class,
         TournamentController.class,
         AuthSessionController.class,
-        OperationalAuditController.class
+        OperationalAuditController.class,
+        PermissionGovernanceController.class
 })
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "app.cors.allowed-origins=http://localhost:4200")
@@ -88,6 +94,10 @@ class SecurityContractWebMvcTest {
 
     @MockBean
     private PermissionResolutionDiagnosticsService permissionResolutionDiagnosticsService;
+
+    @MockBean
+    private PermissionGovernanceService permissionGovernanceService;
+
 
     @MockBean
     private DatabaseUserDetailsService databaseUserDetailsService;
@@ -574,6 +584,135 @@ class SecurityContractWebMvcTest {
                 .andExpect(jsonPath("$.data.fallbackActive").value(true))
                 .andExpect(jsonPath("$.data.rolesUsingFallback[0]").value("LEGACY_ROLE"))
                 .andExpect(jsonPath("$.data.roles[0].roleCode").value("OPERATOR"));
+    }
+
+    @Test
+    void shouldExposePermissionGovernanceSummaryForAuditUsers() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                29L,
+                "auditor",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_TOURNAMENT_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("governance-summary-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        95L,
+                        OffsetDateTime.parse("2026-04-08T10:15:30Z")
+                )
+        ));
+        when(permissionGovernanceService.getSummary()).thenReturn(
+                new PermissionGovernanceSummaryResponse(
+                        OffsetDateTime.parse("2026-04-08T11:00:00Z"),
+                        false,
+                        List.of("TOURNAMENT_ADMIN", "OPERATOR"),
+                        List.of(new ManagedPermissionResponse(
+                                SecurityPermissions.MATCHES_MANAGE,
+                                "Matches manage",
+                                "Permite crear y actualizar partidos"
+                        )),
+                        List.of(new ManagedRolePermissionResponse(
+                                "OPERATOR",
+                                "Operator",
+                                true,
+                                List.of(SecurityPermissions.MATCHES_MANAGE)
+                        ))
+                )
+        );
+
+        mockMvc.perform(get("/operations/permission-governance/roles")
+                        .header("Authorization", "Bearer governance-summary-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("PERMISSION_GOVERNANCE_SUMMARY"))
+                .andExpect(jsonPath("$.data.writeEnabled").value(false))
+                .andExpect(jsonPath("$.data.mutableRoles[0]").value("TOURNAMENT_ADMIN"))
+                .andExpect(jsonPath("$.data.roles[0].roleCode").value("OPERATOR"));
+    }
+
+    @Test
+    void shouldAllowSuperAdminToUpdateRolePermissionsWithExplicitGovernancePermission() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                30L,
+                "superadmin",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.PERMISSION_GOVERNANCE_MANAGE)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("governance-manage-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        96L,
+                        OffsetDateTime.parse("2026-04-08T10:15:30Z")
+                )
+        ));
+        when(permissionGovernanceService.replaceRolePermissions(
+                org.mockito.ArgumentMatchers.eq("OPERATOR"),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(new ManagedRolePermissionResponse(
+                "OPERATOR",
+                "Operator",
+                true,
+                List.of(
+                        SecurityPermissions.AUTH_SESSION_READ,
+                        SecurityPermissions.MATCHES_MANAGE
+                )
+        ));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/operations/permission-governance/roles/{roleCode}", "OPERATOR")
+                        .header("Authorization", "Bearer governance-manage-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  \"permissionCodes\": [
+                                    \"auth:session:read\",
+                                    \"matches:manage\"
+                                  ],
+                                  \"reason\": \"ajuste operativo controlado\"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("PERMISSION_ROLE_ASSIGNMENTS_UPDATED"))
+                .andExpect(jsonPath("$.data.roleCode").value("OPERATOR"))
+                .andExpect(jsonPath("$.data.permissionCodes[1]").value(SecurityPermissions.MATCHES_MANAGE));
+    }
+
+    @Test
+    void shouldDenyRolePermissionUpdateWithoutGovernancePermission() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                31L,
+                "tadmin",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_TOURNAMENT_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("no-governance-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        97L,
+                        OffsetDateTime.parse("2026-04-08T10:15:30Z")
+                )
+        ));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/operations/permission-governance/roles/{roleCode}", "OPERATOR")
+                        .header("Authorization", "Bearer no-governance-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  \"permissionCodes\": [
+                                    \"matches:manage\"
+                                  ],
+                                  \"reason\": \"ajuste operativo controlado\"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 }
 

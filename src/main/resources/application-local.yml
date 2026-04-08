@@ -12,3 +12,7 @@ logging:
     com.multideporte.backend: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+app:
+  permission-governance:
+    write-enabled: true

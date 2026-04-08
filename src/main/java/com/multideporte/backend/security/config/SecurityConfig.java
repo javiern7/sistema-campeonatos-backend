@@ -6,6 +6,7 @@ import com.multideporte.backend.config.CorsProperties;
 import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.security.auth.AuthSessionProperties;
 import com.multideporte.backend.security.auth.BearerTokenAuthenticationFilter;
+import com.multideporte.backend.security.governance.PermissionGovernanceProperties;
 import com.multideporte.backend.security.user.DatabaseUserDetailsService;
 import java.io.IOException;
 import java.util.List;
@@ -30,7 +31,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties({CorsProperties.class, AuthSessionProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, AuthSessionProperties.class, PermissionGovernanceProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
