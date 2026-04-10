@@ -24,7 +24,9 @@ public class AuthorizationCapabilityService {
             SecurityPermissions.ROSTERS_READ,
             SecurityPermissions.MATCHES_READ,
             SecurityPermissions.STANDINGS_READ,
-            SecurityPermissions.AUTH_SESSION_READ
+            SecurityPermissions.AUTH_SESSION_READ,
+            SecurityPermissions.USERS_READ,
+            SecurityPermissions.BASIC_CONFIGURATION_READ
     );
 
     private static final List<String> ADMIN_MANAGE_PERMISSIONS = List.of(
@@ -69,14 +71,19 @@ public class AuthorizationCapabilityService {
                     SUPER_ADMIN_DELETE_PERMISSIONS,
                     List.of(
                             SecurityPermissions.OPERATIONAL_AUDIT_READ,
-                            SecurityPermissions.PERMISSION_GOVERNANCE_MANAGE
+                            SecurityPermissions.PERMISSION_GOVERNANCE_MANAGE,
+                            SecurityPermissions.USERS_MANAGE,
+                            SecurityPermissions.BASIC_CONFIGURATION_MANAGE
                     )
             ),
             "TOURNAMENT_ADMIN",
             merge(
                     BASE_READ_PERMISSIONS,
                     ADMIN_MANAGE_PERMISSIONS,
-                    List.of(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                    List.of(
+                            SecurityPermissions.OPERATIONAL_AUDIT_READ,
+                            SecurityPermissions.BASIC_CONFIGURATION_MANAGE
+                    )
             ),
             "OPERATOR",
             merge(BASE_READ_PERMISSIONS, OPERATOR_MANAGE_PERMISSIONS)
