@@ -54,7 +54,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -77,38 +77,38 @@ class SecurityContractWebMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private SportService sportService;
 
-    @MockBean
+    @MockitoBean
     private TeamService teamService;
 
-    @MockBean
+    @MockitoBean
     private MatchGameService matchGameService;
 
-    @MockBean
+    @MockitoBean
     private TournamentService tournamentService;
 
-    @MockBean
+    @MockitoBean
     private OperationalAuditService operationalAuditService;
 
-    @MockBean
+    @MockitoBean
     private PermissionResolutionDiagnosticsService permissionResolutionDiagnosticsService;
 
-    @MockBean
+    @MockitoBean
     private PermissionGovernanceService permissionGovernanceService;
 
 
-    @MockBean
+    @MockitoBean
     private DatabaseUserDetailsService databaseUserDetailsService;
 
-    @MockBean
+    @MockitoBean
     private AppUserRepository appUserRepository;
 
-    @MockBean
+    @MockitoBean
     private AuthorizationCapabilityService authorizationCapabilityService;
 
-    @MockBean
+    @MockitoBean
     private AuthTokenService authTokenService;
 
     @Test
@@ -715,6 +715,7 @@ class SecurityContractWebMvcTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 }
+
 
 
 
