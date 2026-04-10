@@ -3,6 +3,7 @@ package com.multideporte.backend.security.usermanagement;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class OperationalUserManagementServiceTest {
@@ -85,6 +91,55 @@ class OperationalUserManagementServiceTest {
         ))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("gestion operativa");
+    }
+
+    @Test
+    void shouldTranslateFullNameSortToEntityFields() {
+        when(appUserRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(java.util.List.of()));
+
+        operationalUserManagementService.getUsers(
+                null,
+                null,
+                null,
+                PageRequest.of(0, 20, Sort.by(Sort.Order.asc("fullName")))
+        );
+
+        verify(appUserRepository).findAll(anySpecification(), eq(PageRequest.of(
+                0,
+                20,
+                Sort.by(
+                        Sort.Order.asc("firstName"),
+                        Sort.Order.asc("lastName"),
+                        Sort.Order.asc("id")
+                )
+        )));
+    }
+
+    @Test
+    void shouldFallbackToDefaultSortWhenSortIsUnsupported() {
+        when(appUserRepository.findAll(anySpecification(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(java.util.List.of()));
+
+        operationalUserManagementService.getUsers(
+                null,
+                null,
+                null,
+                PageRequest.of(0, 20, Sort.by(Sort.Order.desc("unsupportedField")))
+        );
+
+        verify(appUserRepository).findAll(anySpecification(), eq(PageRequest.of(
+                0,
+                20,
+                Sort.by(
+                        Sort.Order.asc("username"),
+                        Sort.Order.asc("id")
+                )
+        )));
+    }
+
+    private Specification<AppUser> anySpecification() {
+        return any();
     }
 
     private AppUser user(Long id, String username, String status, String... roleCodes) {

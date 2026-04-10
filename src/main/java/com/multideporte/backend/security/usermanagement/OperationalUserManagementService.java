@@ -12,8 +12,10 @@ import com.multideporte.backend.security.usermanagement.dto.OperationalUserStatu
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,10 @@ public class OperationalUserManagementService {
 
     private static final String AUDIT_RESOURCE_TYPE = "APP_USER";
     private static final String IMMUTABLE_ROLE_CODE = "SUPER_ADMIN";
+    private static final Sort DEFAULT_SORT = Sort.by(
+            Sort.Order.asc("username"),
+            Sort.Order.asc("id")
+    );
 
     private final AppUserRepository appUserRepository;
     private final CurrentUserService currentUserService;
@@ -30,7 +36,10 @@ public class OperationalUserManagementService {
 
     @Transactional(readOnly = true)
     public Page<OperationalUserResponse> getUsers(String query, String status, String roleCode, Pageable pageable) {
-        return appUserRepository.findAll(AppUserSpecifications.byFilters(query, status, roleCode), pageable)
+        return appUserRepository.findAll(
+                        AppUserSpecifications.byFilters(query, status, roleCode),
+                        normalizePageable(pageable)
+                )
                 .map(this::toResponse);
     }
 
@@ -125,5 +134,53 @@ public class OperationalUserManagementService {
                 roles,
                 statusManageable
         );
+    }
+
+    private Pageable normalizePageable(Pageable pageable) {
+        if (pageable == null) {
+            return PageRequest.of(0, 20, DEFAULT_SORT);
+        }
+
+        Sort normalizedSort = pageable.getSort().isSorted()
+                ? translateSort(pageable.getSort())
+                : DEFAULT_SORT;
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), normalizedSort);
+    }
+
+    private Sort translateSort(Sort requestedSort) {
+        List<Sort.Order> translatedOrders = requestedSort.stream()
+                .flatMap(order -> mapSortOrder(order).stream())
+                .toList();
+
+        if (translatedOrders.isEmpty()) {
+            return DEFAULT_SORT;
+        }
+
+        boolean containsId = translatedOrders.stream()
+                .anyMatch(order -> "id".equals(order.getProperty()));
+
+        return containsId
+                ? Sort.by(translatedOrders)
+                : Sort.by(translatedOrders).and(Sort.by(new Sort.Order(Sort.Direction.ASC, "id")));
+    }
+
+    private List<Sort.Order> mapSortOrder(Sort.Order order) {
+        Sort.Direction direction = order.getDirection();
+
+        return switch (order.getProperty()) {
+            case "userId", "id" -> List.of(new Sort.Order(direction, "id"));
+            case "username" -> List.of(new Sort.Order(direction, "username"));
+            case "email" -> List.of(new Sort.Order(direction, "email"));
+            case "firstName" -> List.of(new Sort.Order(direction, "firstName"));
+            case "lastName" -> List.of(new Sort.Order(direction, "lastName"));
+            case "fullName" -> List.of(
+                    new Sort.Order(direction, "firstName"),
+                    new Sort.Order(direction, "lastName")
+            );
+            case "status" -> List.of(new Sort.Order(direction, "status"));
+            case "lastLoginAt" -> List.of(new Sort.Order(direction, "lastLoginAt"));
+            default -> List.of();
+        };
     }
 }
