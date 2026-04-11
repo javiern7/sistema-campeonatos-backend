@@ -9,5 +9,7 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long>, J
 
     boolean existsBySlug(String slug);
 
+    boolean existsBySportId(Long sportId);
+
     Optional<Tournament> findBySlug(String slug);
 }

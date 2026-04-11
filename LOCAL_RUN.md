@@ -107,6 +107,30 @@ La migracion `V6__seed_roles_admin_sports.sql` ya deja deportes base:
 - `BASKETBALL`
 - `VOLLEYBALL`
 
+La migracion `V17__sport_positions_master_configuration.sql` agrega posiciones base para esos deportes. Para verificar el contrato minimo de configuracion maestra multideporte:
+
+```bash
+curl -X GET "http://localhost:8080/api/sports" \
+  -u devadmin:admin123
+```
+
+```bash
+curl -X GET "http://localhost:8080/api/sports/1/positions" \
+  -u devadmin:admin123
+```
+
+```bash
+curl -X GET "http://localhost:8080/api/sports/competition-formats" \
+  -u devadmin:admin123
+```
+
+Pruebas focalizadas del bloque V4:
+
+```powershell
+mvn "-Dmaven.repo.local=.m2repo" "-Dmaven.compiler.useIncrementalCompilation=false" "-Dtest=SportValidatorTest,SportServiceImplTest" test
+mvn "-Dmaven.repo.local=.m2repo" "-Dmaven.compiler.useIncrementalCompilation=false" "-Dtest=SecurityContractWebMvcTest" test
+```
+
 ## 6. Comandos utiles
 
 Ver logs:

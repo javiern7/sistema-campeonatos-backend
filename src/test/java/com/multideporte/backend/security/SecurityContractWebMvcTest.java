@@ -204,7 +204,7 @@ class SecurityContractWebMvcTest {
                 )
         ));
         when(sportService.getAll(true)).thenReturn(List.of(
-                new SportResponse(1L, "FOOTBALL", "Football", true)
+                new SportResponse(1L, "FOOTBALL", "Football", true, 11, "GOALS", true)
         ));
 
         mockMvc.perform(get("/sports")
@@ -715,11 +715,4 @@ class SecurityContractWebMvcTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 }
-
-
-
-
-
-
-
 

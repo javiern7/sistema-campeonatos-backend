@@ -1,12 +1,11 @@
 package com.multideporte.backend.sport.dto.response;
 
-public record SportResponse(
+public record SportPositionResponse(
         Long id,
+        Long sportId,
         String code,
         String name,
-        Boolean teamBased,
-        Integer maxPlayersOnField,
-        String scoreLabel,
+        Integer displayOrder,
         Boolean active
 ) {
 }
