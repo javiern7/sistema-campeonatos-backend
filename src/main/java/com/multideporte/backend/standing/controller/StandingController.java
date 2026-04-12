@@ -2,6 +2,7 @@ package com.multideporte.backend.standing.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.common.api.PageableSortAliases;
 import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.standing.dto.request.StandingCreateRequest;
@@ -11,6 +12,7 @@ import com.multideporte.backend.standing.dto.response.StandingRecalculationRespo
 import com.multideporte.backend.standing.dto.response.StandingResponse;
 import com.multideporte.backend.standing.service.StandingService;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/standings")
 @RequiredArgsConstructor
 public class StandingController {
+
+    private static final Map<String, String> SORT_ALIASES = Map.of("createdAt", "updatedAt");
 
     private final StandingService standingService;
     private final OperationalAuditService operationalAuditService;
@@ -61,7 +65,13 @@ public class StandingController {
             @RequestParam(required = false) Long tournamentTeamId,
             @PageableDefault(size = 20, sort = "rankPosition") Pageable pageable
     ) {
-        Page<StandingResponse> response = standingService.getAll(tournamentId, stageId, groupId, tournamentTeamId, pageable);
+        Page<StandingResponse> response = standingService.getAll(
+                tournamentId,
+                stageId,
+                groupId,
+                tournamentTeamId,
+                PageableSortAliases.map(pageable, SORT_ALIASES)
+        );
         return ResponseEntity.ok(ApiResponse.success("STANDING_PAGE", "Standings obtenidos correctamente", PageResponse.from(response)));
     }
 

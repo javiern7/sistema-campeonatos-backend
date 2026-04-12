@@ -2,6 +2,7 @@ package com.multideporte.backend.tournamentteam.controller;
 
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
+import com.multideporte.backend.common.api.PageableSortAliases;
 import com.multideporte.backend.security.audit.OperationalAuditService;
 import com.multideporte.backend.security.auth.SecurityPermissions;
 import com.multideporte.backend.tournamentteam.dto.request.TournamentTeamCreateRequest;
@@ -10,6 +11,7 @@ import com.multideporte.backend.tournamentteam.dto.response.TournamentTeamRespon
 import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.service.TournamentTeamService;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/tournament-teams")
 @RequiredArgsConstructor
 public class TournamentTeamController {
+
+    private static final Map<String, String> SORT_ALIASES = Map.of("createdAt", "joinedAt");
 
     private final TournamentTeamService tournamentTeamService;
     private final OperationalAuditService operationalAuditService;
@@ -61,7 +65,12 @@ public class TournamentTeamController {
             @RequestParam(required = false) TournamentTeamRegistrationStatus registrationStatus,
             @PageableDefault(size = 20, sort = {"seedNumber", "id"}) Pageable pageable
     ) {
-        Page<TournamentTeamResponse> response = tournamentTeamService.getAll(tournamentId, teamId, registrationStatus, pageable);
+        Page<TournamentTeamResponse> response = tournamentTeamService.getAll(
+                tournamentId,
+                teamId,
+                registrationStatus,
+                PageableSortAliases.map(pageable, SORT_ALIASES)
+        );
         return ResponseEntity.ok(ApiResponse.success("TOURNAMENT_TEAM_PAGE", "Inscripciones obtenidas correctamente", PageResponse.from(response)));
     }
 

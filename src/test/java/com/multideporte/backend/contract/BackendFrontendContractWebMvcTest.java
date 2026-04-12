@@ -35,6 +35,8 @@ import com.multideporte.backend.team.service.TeamService;
 import com.multideporte.backend.tournament.controller.TournamentController;
 import com.multideporte.backend.tournament.service.TournamentService;
 import com.multideporte.backend.tournamentteam.controller.TournamentTeamController;
+import com.multideporte.backend.tournamentteam.dto.response.TournamentTeamResponse;
+import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
 import com.multideporte.backend.tournamentteam.service.TournamentTeamService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -217,6 +219,51 @@ class BackendFrontendContractWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].rankPosition").value(1))
                 .andExpect(jsonPath("$.data.sort[0].property").value("rankPosition"));
+    }
+
+    @Test
+    void shouldMapCreatedAtSortAliasForCrudOperationalModulesWithoutCreatedAtField() throws Exception {
+        OffsetDateTime now = OffsetDateTime.parse("2026-04-11T10:00:00Z");
+        when(tournamentTeamService.getAll(eq(null), eq(null), eq(null), org.mockito.ArgumentMatchers.any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(new TournamentTeamResponse(9L, 1L, 2L, TournamentTeamRegistrationStatus.APPROVED, 1, 1, now)),
+                        PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "joinedAt")),
+                        1
+                ));
+        when(standingService.getAll(eq(null), eq(null), eq(null), eq(null), org.mockito.ArgumentMatchers.any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(new StandingResponse(10L, 1L, null, null, 9L, 0, 0, 0, 0, 0, 0, 0, 0, null, now)),
+                        PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "updatedAt")),
+                        1
+                ));
+
+        mockMvc.perform(get("/tournament-teams")
+                        .param("page", "0")
+                        .param("size", "1")
+                        .param("sort", "createdAt,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sort[0].property").value("joinedAt"))
+                .andExpect(jsonPath("$.data.sort[0].direction").value("DESC"));
+
+        mockMvc.perform(get("/standings")
+                        .param("page", "0")
+                        .param("size", "1")
+                        .param("sort", "createdAt,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sort[0].property").value("updatedAt"))
+                .andExpect(jsonPath("$.data.sort[0].direction").value("DESC"));
+
+        ArgumentCaptor<Pageable> tournamentTeamsPageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(tournamentTeamService).getAll(eq(null), eq(null), eq(null), tournamentTeamsPageableCaptor.capture());
+        Sort.Order tournamentTeamOrder = tournamentTeamsPageableCaptor.getValue().getSort().getOrderFor("joinedAt");
+        org.junit.jupiter.api.Assertions.assertNotNull(tournamentTeamOrder);
+        org.junit.jupiter.api.Assertions.assertEquals(Sort.Direction.DESC, tournamentTeamOrder.getDirection());
+
+        ArgumentCaptor<Pageable> standingsPageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(standingService).getAll(eq(null), eq(null), eq(null), eq(null), standingsPageableCaptor.capture());
+        Sort.Order standingOrder = standingsPageableCaptor.getValue().getSort().getOrderFor("updatedAt");
+        org.junit.jupiter.api.Assertions.assertNotNull(standingOrder);
+        org.junit.jupiter.api.Assertions.assertEquals(Sort.Direction.DESC, standingOrder.getDirection());
     }
 
     @Test
