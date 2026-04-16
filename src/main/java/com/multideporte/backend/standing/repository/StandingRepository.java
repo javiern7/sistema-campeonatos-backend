@@ -30,4 +30,6 @@ public interface StandingRepository extends JpaRepository<Standing, Long>, JpaSp
     List<Standing> findAllByTournamentIdAndStageIdAndGroupIdOrderByRankPositionAsc(Long tournamentId, Long stageId, Long groupId);
 
     long countByTournamentId(Long tournamentId);
+
+    List<Standing> findAllByTournamentIdOrderByRankPositionAsc(Long tournamentId);
 }

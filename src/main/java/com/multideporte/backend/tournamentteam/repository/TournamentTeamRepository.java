@@ -2,6 +2,7 @@ package com.multideporte.backend.tournamentteam.repository;
 
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeamRegistrationStatus;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -37,4 +38,6 @@ public interface TournamentTeamRepository extends JpaRepository<TournamentTeam, 
               )
             """)
     long countApprovedTeamsWithActiveRosterSupport(@Param("tournamentId") Long tournamentId);
+
+    List<TournamentTeam> findAllByTournamentId(Long tournamentId);
 }

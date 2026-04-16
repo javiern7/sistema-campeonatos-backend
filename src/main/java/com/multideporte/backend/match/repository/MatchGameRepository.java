@@ -78,4 +78,6 @@ public interface MatchGameRepository extends JpaRepository<MatchGame, Long>, Jpa
             Long groupId,
             Collection<MatchGameStatus> statuses
     );
+
+    List<MatchGame> findAllByTournamentIdOrderByScheduledAtAscIdAsc(Long tournamentId);
 }
