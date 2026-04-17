@@ -19,6 +19,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @RequiredArgsConstructor
@@ -101,6 +103,12 @@ public class GlobalExceptionHandler {
                         "VALIDATION_ERROR",
                         "Falta el parametro requerido: " + ex.getParameterName()
                 ));
+    }
+
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<ApiResponse<Void>> handleNoHandlerFound(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("RESOURCE_NOT_FOUND", "Ruta no encontrada"));
     }
 
     @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
