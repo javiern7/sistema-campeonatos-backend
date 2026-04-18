@@ -1,5 +1,6 @@
 package com.multideporte.backend.security.user;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -12,4 +13,6 @@ public interface AppRoleRepository extends JpaRepository<AppRole, Long> {
 
     @EntityGraph(attributePaths = "permissions")
     Optional<AppRole> findByCode(String code);
+
+    List<AppRole> findByCodeIn(Collection<String> codes);
 }

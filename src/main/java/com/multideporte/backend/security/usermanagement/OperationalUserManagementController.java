@@ -3,7 +3,10 @@ package com.multideporte.backend.security.usermanagement;
 import com.multideporte.backend.common.api.ApiResponse;
 import com.multideporte.backend.common.api.PageResponse;
 import com.multideporte.backend.security.auth.SecurityPermissions;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserDetailResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserPermissionSummaryResponse;
 import com.multideporte.backend.security.usermanagement.dto.OperationalUserResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserRolesUpdateRequest;
 import com.multideporte.backend.security.usermanagement.dto.OperationalUserStatusUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,28 @@ public class OperationalUserManagementController {
         ));
     }
 
+    @GetMapping("/{userId}")
+    @PreAuthorize(SecurityPermissions.CAN_READ_USERS)
+    public ResponseEntity<ApiResponse<OperationalUserDetailResponse>> getUserDetail(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "OPERATIONAL_USER_DETAIL",
+                "Detalle de usuario operativo obtenido correctamente",
+                operationalUserManagementService.getUserDetail(userId)
+        ));
+    }
+
+    @GetMapping("/{userId}/permissions")
+    @PreAuthorize(SecurityPermissions.CAN_READ_USERS)
+    public ResponseEntity<ApiResponse<OperationalUserPermissionSummaryResponse>> getUserPermissions(
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "OPERATIONAL_USER_PERMISSIONS",
+                "Permisos efectivos de usuario obtenidos correctamente",
+                operationalUserManagementService.getUserPermissions(userId)
+        ));
+    }
+
     @PutMapping("/{userId}/status")
     @PreAuthorize(SecurityPermissions.CAN_MANAGE_USERS)
     public ResponseEntity<ApiResponse<OperationalUserResponse>> updateStatus(
@@ -53,6 +78,19 @@ public class OperationalUserManagementController {
                 "OPERATIONAL_USER_STATUS_UPDATED",
                 "Estado de usuario actualizado correctamente",
                 operationalUserManagementService.updateStatus(userId, request)
+        ));
+    }
+
+    @PutMapping("/{userId}/roles")
+    @PreAuthorize(SecurityPermissions.CAN_MANAGE_USERS)
+    public ResponseEntity<ApiResponse<OperationalUserDetailResponse>> replaceUserRoles(
+            @PathVariable Long userId,
+            @Valid @RequestBody OperationalUserRolesUpdateRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "OPERATIONAL_USER_ROLES_UPDATED",
+                "Roles de usuario actualizados correctamente",
+                operationalUserManagementService.replaceUserRoles(userId, request)
         ));
     }
 }

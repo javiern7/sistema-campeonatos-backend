@@ -28,6 +28,9 @@ public class AppRole {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "description")
+    private String description;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "app_role_permission",

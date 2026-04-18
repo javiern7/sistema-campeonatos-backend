@@ -18,4 +18,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpec
 
     @EntityGraph(attributePaths = {"roles"})
     Optional<AppUser> findDetailedById(Long id);
+
+    @EntityGraph(attributePaths = {"roles", "roles.permissions"})
+    Optional<AppUser> findWithRolesAndPermissionsById(Long id);
 }

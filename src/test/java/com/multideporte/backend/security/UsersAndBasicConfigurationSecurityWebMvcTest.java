@@ -16,9 +16,15 @@ import com.multideporte.backend.security.config.SecurityConfig;
 import com.multideporte.backend.security.user.AppUserRepository;
 import com.multideporte.backend.security.user.AuthenticatedUser;
 import com.multideporte.backend.security.user.DatabaseUserDetailsService;
+import com.multideporte.backend.security.usermanagement.OperationalAdministrationCatalogController;
 import com.multideporte.backend.security.usermanagement.OperationalUserManagementController;
 import com.multideporte.backend.security.usermanagement.OperationalUserManagementService;
+import com.multideporte.backend.security.usermanagement.dto.OperationalPermissionResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalRoleResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserDetailResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserPermissionSummaryResponse;
 import com.multideporte.backend.security.usermanagement.dto.OperationalUserResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserStatusResponse;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = {
         OperationalUserManagementController.class,
+        OperationalAdministrationCatalogController.class,
         BasicConfigurationController.class
 })
 @Import(SecurityConfig.class)
@@ -154,6 +161,188 @@ class UsersAndBasicConfigurationSecurityWebMvcTest {
     }
 
     @Test
+    void shouldExposeOperationalUserDetailForUsersReadPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = usersReadUser();
+        when(authTokenService.authenticateAccessToken("users-read-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        98L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(operationalUserManagementService.getUserDetail(15L)).thenReturn(new OperationalUserDetailResponse(
+                15L,
+                "operator",
+                "operator@local.test",
+                "Op",
+                "Erator",
+                "Op Erator",
+                "ACTIVE",
+                OffsetDateTime.parse("2026-04-09T09:00:00Z"),
+                List.of(new OperationalRoleResponse("OPERATOR", "Operator", "Opera resultados", true, true, null)),
+                true,
+                null,
+                true,
+                null
+        ));
+
+        mockMvc.perform(get("/operations/users/{id}", 15L)
+                        .header("Authorization", "Bearer users-read-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_USER_DETAIL"))
+                .andExpect(jsonPath("$.data.roles[0].roleCode").value("OPERATOR"));
+    }
+
+    @Test
+    void shouldExposeOperationalUserPermissionsForUsersReadPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = usersReadUser();
+        when(authTokenService.authenticateAccessToken("users-read-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        98L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(operationalUserManagementService.getUserPermissions(15L)).thenReturn(
+                new OperationalUserPermissionSummaryResponse(
+                        15L,
+                        "operator",
+                        List.of(new OperationalRoleResponse("OPERATOR", "Operator", "Opera resultados", true, true, null)),
+                        List.of(new OperationalPermissionResponse(SecurityPermissions.MATCHES_MANAGE, "Matches manage", "Permite gestionar partidos"))
+                )
+        );
+
+        mockMvc.perform(get("/operations/users/{id}/permissions", 15L)
+                        .header("Authorization", "Bearer users-read-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_USER_PERMISSIONS"))
+                .andExpect(jsonPath("$.data.permissions[0].code").value(SecurityPermissions.MATCHES_MANAGE));
+    }
+
+    @Test
+    void shouldAllowSuperAdminToUpdateOperationalUserRoles() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                33L,
+                "superadmin",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.USERS_MANAGE)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("users-manage-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        99L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(operationalUserManagementService.replaceUserRoles(
+                org.mockito.ArgumentMatchers.eq(15L),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(new OperationalUserDetailResponse(
+                15L,
+                "operator",
+                "operator@local.test",
+                "Op",
+                "Erator",
+                "Op Erator",
+                "ACTIVE",
+                OffsetDateTime.parse("2026-04-09T09:00:00Z"),
+                List.of(new OperationalRoleResponse("TOURNAMENT_ADMIN", "Tournament Admin", "Gestiona torneos", true, true, null)),
+                true,
+                null,
+                true,
+                null
+        ));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/operations/users/{id}/roles", 15L)
+                        .header("Authorization", "Bearer users-manage-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  \"roleCodes\": [\"TOURNAMENT_ADMIN\"],
+                                  \"reason\": \"ajuste operativo\"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_USER_ROLES_UPDATED"))
+                .andExpect(jsonPath("$.data.roles[0].roleCode").value("TOURNAMENT_ADMIN"));
+    }
+
+    @Test
+    void shouldDenyOperationalUserRolesUpdateWithoutManagePermission() throws Exception {
+        AuthenticatedUser authenticatedUser = usersReadUser();
+        when(authTokenService.authenticateAccessToken("users-read-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        98L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/operations/users/{id}/roles", 15L)
+                        .header("Authorization", "Bearer users-read-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  \"roleCodes\": [\"OPERATOR\"],
+                                  \"reason\": \"ajuste operativo\"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldExposeOperationalRolesForUsersReadPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = usersReadUser();
+        when(authTokenService.authenticateAccessToken("users-read-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        98L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(operationalUserManagementService.getRoles()).thenReturn(List.of(
+                new OperationalRoleResponse(
+                        "OPERATOR",
+                        "Operator",
+                        "Opera resultados, partidos y rosters",
+                        true,
+                        true,
+                        null
+                )
+        ));
+
+        mockMvc.perform(get("/operations/roles")
+                        .header("Authorization", "Bearer users-read-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_ROLES"))
+                .andExpect(jsonPath("$.data[0].assignable").value(true));
+    }
+
+    @Test
+    void shouldExposeOperationalUserStatusesForUsersReadPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = usersReadUser();
+        when(authTokenService.authenticateAccessToken("users-read-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        98L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(operationalUserManagementService.getUserStatuses()).thenReturn(List.of(
+                new OperationalUserStatusResponse("ACTIVE", "Activo", "Usuario habilitado")
+        ));
+
+        mockMvc.perform(get("/operations/user-statuses")
+                        .header("Authorization", "Bearer users-read-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_USER_STATUSES"))
+                .andExpect(jsonPath("$.data[0].code").value("ACTIVE"));
+    }
+    @Test
     void shouldExposeBasicConfigurationForReadPermission() throws Exception {
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                 34L,
@@ -217,5 +406,15 @@ class UsersAndBasicConfigurationSecurityWebMvcTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
+    private AuthenticatedUser usersReadUser() {
+        return new AuthenticatedUser(
+                32L,
+                "tadmin",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_TOURNAMENT_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.USERS_READ)
+                )
+        );
+    }
 }
-

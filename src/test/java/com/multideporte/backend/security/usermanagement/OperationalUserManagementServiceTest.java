@@ -9,11 +9,18 @@ import static org.mockito.Mockito.when;
 
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.security.audit.OperationalAuditService;
+import com.multideporte.backend.security.auth.AuthorizationCapabilityService;
+import com.multideporte.backend.security.governance.PermissionGovernanceProperties;
+import com.multideporte.backend.security.user.AppPermission;
 import com.multideporte.backend.security.user.AppRole;
+import com.multideporte.backend.security.user.AppRoleRepository;
 import com.multideporte.backend.security.user.AppUser;
 import com.multideporte.backend.security.user.AppUserRepository;
 import com.multideporte.backend.security.user.CurrentUserService;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserDetailResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserPermissionSummaryResponse;
 import com.multideporte.backend.security.usermanagement.dto.OperationalUserResponse;
+import com.multideporte.backend.security.usermanagement.dto.OperationalUserRolesUpdateRequest;
 import com.multideporte.backend.security.usermanagement.dto.OperationalUserStatusUpdateRequest;
 import java.util.Optional;
 import java.util.Set;
@@ -35,6 +42,12 @@ class OperationalUserManagementServiceTest {
     private AppUserRepository appUserRepository;
 
     @Mock
+    private AppRoleRepository appRoleRepository;
+
+    @Mock
+    private AuthorizationCapabilityService authorizationCapabilityService;
+
+    @Mock
     private CurrentUserService currentUserService;
 
     @Mock
@@ -44,8 +57,13 @@ class OperationalUserManagementServiceTest {
 
     @BeforeEach
     void setUp() {
+        PermissionGovernanceProperties permissionGovernanceProperties = new PermissionGovernanceProperties();
+        permissionGovernanceProperties.setMutableRoles(java.util.List.of("TOURNAMENT_ADMIN", "OPERATOR"));
         operationalUserManagementService = new OperationalUserManagementService(
                 appUserRepository,
+                appRoleRepository,
+                authorizationCapabilityService,
+                permissionGovernanceProperties,
                 currentUserService,
                 operationalAuditService
         );
@@ -93,6 +111,77 @@ class OperationalUserManagementServiceTest {
                 .hasMessageContaining("gestion operativa");
     }
 
+    @Test
+    void shouldReturnUserDetailWithRoleManageabilityMetadata() {
+        AppUser user = user(20L, "operator", "ACTIVE", "OPERATOR");
+        when(appUserRepository.findDetailedById(20L)).thenReturn(Optional.of(user));
+
+        OperationalUserDetailResponse response = operationalUserManagementService.getUserDetail(20L);
+
+        assertThat(response.userId()).isEqualTo(20L);
+        assertThat(response.rolesManageable()).isTrue();
+        assertThat(response.roles()).extracting("roleCode").containsExactly("OPERATOR");
+    }
+
+    @Test
+    void shouldReturnEffectiveUserPermissionsWithMetadata() {
+        AppPermission permission = permission("matches:manage", "Matches manage", "Permite gestionar partidos");
+        AppRole role = role("OPERATOR");
+        role.setPermissions(Set.of(permission));
+        AppUser user = user(20L, "operator", "ACTIVE");
+        user.setRoles(Set.of(role));
+        when(appUserRepository.findWithRolesAndPermissionsById(20L)).thenReturn(Optional.of(user));
+        when(authorizationCapabilityService.resolvePermissions(user.getRoles())).thenReturn(java.util.List.of("matches:manage"));
+
+        OperationalUserPermissionSummaryResponse response = operationalUserManagementService.getUserPermissions(20L);
+
+        assertThat(response.permissions()).extracting("code").containsExactly("matches:manage");
+        assertThat(response.permissions().get(0).description()).isEqualTo("Permite gestionar partidos");
+    }
+
+    @Test
+    void shouldReplaceUserRolesForManageableUser() {
+        AppUser user = user(20L, "operator", "ACTIVE", "OPERATOR");
+        AppRole newRole = role("TOURNAMENT_ADMIN");
+        when(appUserRepository.findDetailedById(20L)).thenReturn(Optional.of(user));
+        when(appRoleRepository.findByCodeIn(Set.of("TOURNAMENT_ADMIN"))).thenReturn(java.util.List.of(newRole));
+
+        OperationalUserDetailResponse response = operationalUserManagementService.replaceUserRoles(
+                20L,
+                new OperationalUserRolesUpdateRequest(java.util.List.of("TOURNAMENT_ADMIN"), "ascenso operativo")
+        );
+
+        assertThat(response.roles()).extracting("roleCode").containsExactly("TOURNAMENT_ADMIN");
+        verify(appUserRepository).save(user);
+        verify(operationalAuditService).auditSuccess(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldRejectSuperAdminRoleAssignment() {
+        AppUser user = user(20L, "operator", "ACTIVE", "OPERATOR");
+        when(appUserRepository.findDetailedById(20L)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> operationalUserManagementService.replaceUserRoles(
+                20L,
+                new OperationalUserRolesUpdateRequest(java.util.List.of("SUPER_ADMIN"), "ascenso no permitido")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("SUPER_ADMIN");
+    }
+
+    @Test
+    void shouldRejectSelfRoleUpdate() {
+        AppUser user = user(20L, "operator", "ACTIVE", "OPERATOR");
+        when(appUserRepository.findDetailedById(20L)).thenReturn(Optional.of(user));
+        when(currentUserService.getCurrentUserId()).thenReturn(Optional.of(20L));
+
+        assertThatThrownBy(() -> operationalUserManagementService.replaceUserRoles(
+                20L,
+                new OperationalUserRolesUpdateRequest(java.util.List.of("TOURNAMENT_ADMIN"), "autocambio no permitido")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("propios roles");
+    }
     @Test
     void shouldTranslateFullNameSortToEntityFields() {
         when(appUserRepository.findAll(anySpecification(), any(Pageable.class)))
@@ -160,6 +249,19 @@ class OperationalUserManagementServiceTest {
         AppRole role = new AppRole();
         role.setCode(code);
         role.setName(code);
+        role.setDescription(code + " description");
         return role;
     }
+
+    private AppPermission permission(String code, String name, String description) {
+        AppPermission permission = new AppPermission();
+        permission.setCode(code);
+        permission.setName(name);
+        permission.setDescription(description);
+        return permission;
+    }
 }
+
+
+
+
