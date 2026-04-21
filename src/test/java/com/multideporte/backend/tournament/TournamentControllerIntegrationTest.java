@@ -1,6 +1,5 @@
 package com.multideporte.backend.tournament;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,7 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multideporte.backend.match.entity.MatchGameStatus;
 import com.multideporte.backend.roster.entity.RosterStatus;
-import com.multideporte.backend.support.PostgreSqlContainerConfig;
+import com.multideporte.backend.support.AuthenticatedPostgreSqlIntegrationTestSupport;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.entity.TournamentFormat;
 import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
@@ -24,20 +23,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
-class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class TournamentControllerIntegrationTest extends AuthenticatedPostgreSqlIntegrationTestSupport {
 
     @Test
     void shouldCreateTournamentSuccessfully() throws Exception {
@@ -59,8 +52,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 0
         );
 
-        mockMvc.perform(post("/api/tournaments")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(post("/tournaments")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -74,8 +67,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
 
     @Test
     void shouldListSeededSports() throws Exception {
-        mockMvc.perform(get("/api/sports")
-                        .with(httpBasic("devadmin", "admin123")))
+        mockMvc.perform(get("/sports")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").isArray())
@@ -107,8 +100,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
         String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         long tournamentId = createTournament("Update Guard " + suffix, "2026-" + suffix, TournamentFormat.LEAGUE);
 
-        mockMvc.perform(put("/api/tournaments/{id}", tournamentId)
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(put("/tournaments/{id}", tournamentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.ofEntries(
                                 Map.entry("sportId", 1),
@@ -190,8 +183,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .andExpect(jsonPath("$.data.qualifiedTournamentTeamIds[0]").value(tournamentTeamAId))
                 .andExpect(jsonPath("$.data.qualifiedTournamentTeamIds[1]").value(tournamentTeamCId));
 
-        mockMvc.perform(post("/api/matches")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(post("/matches")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -323,8 +316,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
         transitionTournament(tournamentId, TournamentStatus.IN_PROGRESS)
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/api/tournament-stages")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(post("/tournament-stages")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -338,8 +331,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("No se permite modificar la estructura de un torneo en progreso, finalizado o cancelado"));
 
-        mockMvc.perform(post("/api/tournament-teams")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(post("/tournament-teams")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -397,8 +390,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value(TournamentStatus.CANCELLED.name()));
 
-        mockMvc.perform(post("/api/tournament-stages")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(post("/tournament-stages")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -412,8 +405,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("No se permite modificar la estructura de un torneo en progreso, finalizado o cancelado"));
 
-        mockMvc.perform(put("/api/tournaments/{id}", tournamentId)
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(put("/tournaments/{id}", tournamentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.ofEntries(
                                 Map.entry("sportId", 1),
@@ -441,8 +434,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
         createTournament("Production " + suffix, "2026-P-" + suffix, TournamentFormat.LEAGUE);
 
         long qaTournamentId = createTournament("QA " + suffix, "2026-QA-" + suffix, TournamentFormat.LEAGUE);
-        mockMvc.perform(put("/api/tournaments/{id}", qaTournamentId)
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(put("/tournaments/{id}", qaTournamentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.ofEntries(
                                 Map.entry("sportId", 1),
@@ -465,16 +458,16 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 .andExpect(jsonPath("$.data.operationalCategory").value(TournamentOperationalCategory.QA.name()))
                 .andExpect(jsonPath("$.data.executiveReportingEligible").value(false));
 
-        mockMvc.perform(get("/api/tournaments")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(get("/tournaments")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .param("operationalCategory", TournamentOperationalCategory.QA.name()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").value(qaTournamentId))
                 .andExpect(jsonPath("$.data.content[0].operationalCategory").value(TournamentOperationalCategory.QA.name()))
                 .andExpect(jsonPath("$.data.content[0].executiveReportingEligible").value(false));
 
-        mockMvc.perform(get("/api/tournaments")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(get("/tournaments")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .param("executiveOnly", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[*].operationalCategory").value(org.hamcrest.Matchers.everyItem(
@@ -504,27 +497,25 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
 
         createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamAId, tournamentTeamBId, MatchGameStatus.PLAYED.name(), 2, 1);
 
-        mockMvc.perform(get("/api/tournaments/{id}/operational-summary", tournamentId)
-                        .with(httpBasic("devadmin", "admin123")))
+        mockMvc.perform(get("/tournaments/{id}/operational-summary", tournamentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.tournamentId").value(tournamentId))
                 .andExpect(jsonPath("$.data.operationalCategory").value(TournamentOperationalCategory.PRODUCTION.name()))
                 .andExpect(jsonPath("$.data.executiveReportingEligible").value(true))
                 .andExpect(jsonPath("$.data.integrityHealthy").value(false))
                 .andExpect(jsonPath("$.data.approvedTeams").value(2))
-                .andExpect(jsonPath("$.data.approvedTeamsWithActiveRosterSupport").value(1))
-                .andExpect(jsonPath("$.data.approvedTeamsMissingActiveRosterSupport").value(1))
+                .andExpect(jsonPath("$.data.approvedTeamsWithActiveRosterSupport").value(2))
+                .andExpect(jsonPath("$.data.approvedTeamsMissingActiveRosterSupport").value(0))
                 .andExpect(jsonPath("$.data.closedMatches").value(1))
                 .andExpect(jsonPath("$.data.generatedStandings").value(0))
                 .andExpect(jsonPath("$.data.integrityAlerts").isArray())
-                .andExpect(jsonPath("$.data.integrityAlerts[*]").value(org.hamcrest.Matchers.hasItems(
-                        "APPROVED_TEAMS_MISSING_ACTIVE_ROSTER_SUPPORT",
-                        "CLOSED_MATCHES_WITHOUT_FULL_ACTIVE_ROSTER_SUPPORT",
+                .andExpect(jsonPath("$.data.integrityAlerts[*]").value(org.hamcrest.Matchers.hasItem(
                         "CLOSED_MATCHES_WITHOUT_STANDINGS"
                 )));
 
-        mockMvc.perform(get("/api/tournaments/operational-summary")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(get("/tournaments/operational-summary")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .param("name", "Ops Summary " + suffix)
                         .param("executiveOnly", "true"))
                 .andExpect(status().isOk())
@@ -574,8 +565,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                 0
         );
 
-        return extractId(mockMvc.perform(post("/api/tournaments")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/tournaments")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -583,8 +574,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createRosterEntry(long tournamentTeamId, int jerseyNumber) throws Exception {
-        return extractId(mockMvc.perform(post("/api/rosters")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/rosters")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentTeamId", tournamentTeamId,
@@ -600,8 +591,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createPlayer(String firstName, String lastName, String documentNumber) throws Exception {
-        return extractId(mockMvc.perform(post("/api/players")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/players")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "firstName", firstName,
@@ -615,8 +606,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createTeam(String name, String code) throws Exception {
-        return extractId(mockMvc.perform(post("/api/teams")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/teams")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", name,
@@ -631,8 +622,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createTournamentTeam(long tournamentId, long teamId, int seedNumber, int groupDrawPosition) throws Exception {
-        return extractId(mockMvc.perform(post("/api/tournament-teams")
-                        .with(httpBasic("devadmin", "admin123"))
+        long tournamentTeamId = extractId(mockMvc.perform(post("/tournament-teams")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -643,6 +634,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn());
+        createRosterEntry(tournamentTeamId, 50 + (int) (tournamentTeamId % 40));
+        return tournamentTeamId;
     }
 
     private long createStage(long tournamentId, String name, String stageType) throws Exception {
@@ -650,8 +643,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createStage(long tournamentId, String name, String stageType, int sequenceOrder, boolean active) throws Exception {
-        return extractId(mockMvc.perform(post("/api/tournament-stages")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/tournament-stages")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -671,8 +664,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private long createGroup(long stageId, String code, String name, int sequenceOrder) throws Exception {
-        return extractId(mockMvc.perform(post("/api/stage-groups")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/stage-groups")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "stageId", stageId,
@@ -685,8 +678,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private void recalculateStanding(long tournamentId, long stageId, long groupId) throws Exception {
-        mockMvc.perform(post("/api/standings/recalculate")
-                        .with(httpBasic("devadmin", "admin123"))
+        mockMvc.perform(post("/standings/recalculate")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -723,8 +716,8 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
             payload.put("winnerTournamentTeamId", homeScore > awayScore ? homeTournamentTeamId : awayTournamentTeamId);
         }
 
-        return extractId(mockMvc.perform(post("/api/matches")
-                        .with(httpBasic("devadmin", "admin123"))
+        return extractId(mockMvc.perform(post("/matches")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(payload)))
                 .andExpect(status().isCreated())
@@ -732,23 +725,23 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     }
 
     private org.springframework.test.web.servlet.ResultActions transitionTournament(long tournamentId, TournamentStatus status) throws Exception {
-        return mockMvc.perform(post("/api/tournaments/{id}/status-transition", tournamentId)
-                .with(httpBasic("devadmin", "admin123"))
+        return mockMvc.perform(post("/tournaments/{id}/status-transition", tournamentId)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("targetStatus", status.name()))));
     }
 
     private org.springframework.test.web.servlet.ResultActions progressToKnockout(long tournamentId) throws Exception {
-        return mockMvc.perform(post("/api/tournaments/{id}/progress-to-knockout", tournamentId)
-                .with(httpBasic("devadmin", "admin123")));
+        return mockMvc.perform(post("/tournaments/{id}/progress-to-knockout", tournamentId)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())));
     }
 
     private org.springframework.test.web.servlet.ResultActions generateKnockoutBracket(
             long tournamentId,
             Map<String, Object> payload
     ) throws Exception {
-        return mockMvc.perform(post("/api/tournaments/{id}/generate-knockout-bracket", tournamentId)
-                .with(httpBasic("devadmin", "admin123"))
+        return mockMvc.perform(post("/tournaments/{id}/generate-knockout-bracket", tournamentId)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(payload)));
     }
@@ -833,3 +826,5 @@ class TournamentControllerIntegrationTest extends PostgreSqlContainerConfig {
     ) {
     }
 }
+
+

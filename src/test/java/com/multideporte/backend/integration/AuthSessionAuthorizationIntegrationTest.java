@@ -41,13 +41,13 @@ class AuthSessionAuthorizationIntegrationTest extends PostgreSqlContainerConfig 
     void shouldAllowOperationalAuditEndpointsForAdminSession() throws Exception {
         String accessToken = loginAndExtractAccessToken(ADMIN_USERNAME, PASSWORD);
 
-        mockMvc.perform(get("/api/operations/audit-events/recent")
+        mockMvc.perform(get("/operations/audit-events/recent")
                         .header(HttpHeaders.AUTHORIZATION, bearerToken(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OPERATIONAL_AUDIT_EVENT_RECENT"))
                 .andExpect(jsonPath("$.data[0].action").exists());
 
-        mockMvc.perform(get("/api/operations/activity-summary")
+        mockMvc.perform(get("/operations/activity-summary")
                         .header(HttpHeaders.AUTHORIZATION, bearerToken(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OPERATIONAL_ACTIVITY_SUMMARY"))
@@ -58,12 +58,12 @@ class AuthSessionAuthorizationIntegrationTest extends PostgreSqlContainerConfig 
     void shouldDenyOperationalAuditEndpointsForValidationOperator() throws Exception {
         String accessToken = loginAndExtractAccessToken(VALIDATION_USERNAME, PASSWORD);
 
-        mockMvc.perform(get("/api/operations/audit-events/recent")
+        mockMvc.perform(get("/operations/audit-events/recent")
                         .header(HttpHeaders.AUTHORIZATION, bearerToken(accessToken)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        mockMvc.perform(get("/api/operations/activity-summary")
+        mockMvc.perform(get("/operations/activity-summary")
                         .header(HttpHeaders.AUTHORIZATION, bearerToken(accessToken)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
@@ -73,7 +73,7 @@ class AuthSessionAuthorizationIntegrationTest extends PostgreSqlContainerConfig 
     void shouldExposeEffectiveSessionPermissionsWithoutOperationalAuditForValidationOperator() throws Exception {
         String accessToken = loginAndExtractAccessToken(VALIDATION_USERNAME, PASSWORD);
 
-        mockMvc.perform(get("/api/auth/session")
+        mockMvc.perform(get("/auth/session")
                         .header(HttpHeaders.AUTHORIZATION, bearerToken(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("AUTH_SESSION"))
@@ -85,7 +85,7 @@ class AuthSessionAuthorizationIntegrationTest extends PostgreSqlContainerConfig 
     }
 
     private String loginAndExtractAccessToken(String username, String password) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "username", username,
@@ -103,3 +103,4 @@ class AuthSessionAuthorizationIntegrationTest extends PostgreSqlContainerConfig 
         return "Bearer " + accessToken;
     }
 }
+

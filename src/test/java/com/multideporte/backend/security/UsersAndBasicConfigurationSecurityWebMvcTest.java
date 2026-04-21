@@ -417,4 +417,45 @@ class UsersAndBasicConfigurationSecurityWebMvcTest {
                 )
         );
     }
+
+    @Test
+    void shouldAllowSuperAdminToUpdateBasicConfiguration() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                36L,
+                "superadmin",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.BASIC_CONFIGURATION_MANAGE)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("configuration-manage-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        104L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(basicConfigurationService.updateConfiguration(org.mockito.ArgumentMatchers.any())).thenReturn(new BasicConfigurationResponse(
+                "Sistema Campeonatos QA",
+                "soporte.qa@local.test",
+                "America/Bogota",
+                OffsetDateTime.parse("2026-04-09T11:00:00Z")
+        ));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/operations/basic-configuration")
+                        .header("Authorization", "Bearer configuration-manage-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  \"organizationName\": \"Sistema Campeonatos QA\",
+                                  \"supportEmail\": \"soporte.qa@local.test\",
+                                  \"defaultTimezone\": \"America/Bogota\"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("BASIC_CONFIGURATION_UPDATED"))
+                .andExpect(jsonPath("$.data.organizationName").value("Sistema Campeonatos QA"))
+                .andExpect(jsonPath("$.data.defaultTimezone").value("America/Bogota"));
+    }
 }

@@ -1,6 +1,5 @@
 package com.multideporte.backend.integration;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,8 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.roster.entity.RosterStatus;
 import com.multideporte.backend.stage.entity.TournamentStageType;
-import com.multideporte.backend.support.PostgreSqlContainerConfig;
+import com.multideporte.backend.support.AuthenticatedPostgreSqlIntegrationTestSupport;
 import com.multideporte.backend.tournament.dto.request.TournamentCreateRequest;
 import com.multideporte.backend.tournament.entity.TournamentFormat;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
@@ -24,24 +24,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
-class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
-
-    private static final String USERNAME = "devadmin";
-    private static final String PASSWORD = "admin123";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class Sprint3IntegratedFlowTest extends AuthenticatedPostgreSqlIntegrationTestSupport {
 
     @Test
     void shouldExecuteIntegratedFlowAndGenerateStableStandings() throws Exception {
@@ -66,8 +57,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
         createMatch(tournamentId, stageId, groupId, 1, 2, tournamentTeamCId, tournamentTeamAId, 1, 0);
         createMatch(tournamentId, stageId, groupId, 1, 3, tournamentTeamBId, tournamentTeamCId, 2, 0);
 
-        mockMvc.perform(post("/api/standings/recalculate")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        mockMvc.perform(post("/standings/recalculate")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -79,8 +70,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
                 .andExpect(jsonPath("$.data.matchesProcessed").value(3))
                 .andExpect(jsonPath("$.data.standingsGenerated").value(3));
 
-        mockMvc.perform(get("/api/standings")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        mockMvc.perform(get("/standings")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .param("tournamentId", String.valueOf(tournamentId))
                         .param("stageId", String.valueOf(stageId))
                         .param("groupId", String.valueOf(groupId))
@@ -120,8 +111,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
 
         createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamAId, tournamentTeamBId, 2, 1);
 
-        mockMvc.perform(post("/api/matches")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        mockMvc.perform(post("/matches")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -158,8 +149,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
 
         createMatch(tournamentId, stageId, groupId, 1, 1, tournamentTeamId, otherTournamentTeamId, 1, 0);
 
-        mockMvc.perform(post("/api/standings/recalculate")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        mockMvc.perform(post("/standings/recalculate")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -168,21 +159,21 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
                         ))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/api/teams/{id}", teamId).with(httpBasic(USERNAME, PASSWORD)))
+        mockMvc.perform(delete("/teams/{id}", teamId).header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("No se puede eliminar el equipo porque ya esta asociado a un torneo"));
 
-        mockMvc.perform(delete("/api/tournament-stages/{id}", stageId).with(httpBasic(USERNAME, PASSWORD)))
+        mockMvc.perform(delete("/tournament-stages/{id}", stageId).header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("No se puede eliminar la etapa porque ya tiene grupos asociados"));
+                .andExpect(jsonPath("$.message").value("No se permite modificar la estructura de un torneo en progreso, finalizado o cancelado"));
 
-        mockMvc.perform(delete("/api/stage-groups/{id}", groupId).with(httpBasic(USERNAME, PASSWORD)))
+        mockMvc.perform(delete("/stage-groups/{id}", groupId).header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("No se puede eliminar el grupo porque ya tiene partidos o standings asociados"));
+                .andExpect(jsonPath("$.message").value("No se permite modificar la estructura de un torneo en progreso, finalizado o cancelado"));
 
-        mockMvc.perform(delete("/api/tournament-teams/{id}", tournamentTeamId).with(httpBasic(USERNAME, PASSWORD)))
+        mockMvc.perform(delete("/tournament-teams/{id}", tournamentTeamId).header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("No se puede eliminar la inscripcion porque ya tiene partidos o standings asociados"));
+                .andExpect(jsonPath("$.message").value("No se puede eliminar la inscripcion porque ya tiene jugadores en roster"));
     }
 
     private long createTournament(String name, String seasonName) throws Exception {
@@ -204,8 +195,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
                 0
         );
 
-        return extractId(mockMvc.perform(post("/api/tournaments")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        return extractId(mockMvc.perform(post("/tournaments")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -213,8 +204,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
     }
 
     private long createTeam(String name, String code, String primaryColor) throws Exception {
-        return extractId(mockMvc.perform(post("/api/teams")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        return extractId(mockMvc.perform(post("/teams")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", name,
@@ -229,8 +220,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
     }
 
     private long createTournamentTeam(long tournamentId, long teamId, int seedNumber, int groupDrawPosition) throws Exception {
-        return extractId(mockMvc.perform(post("/api/tournament-teams")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        long tournamentTeamId = extractId(mockMvc.perform(post("/tournament-teams")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -241,11 +232,46 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn());
+        long playerId = createPlayer("Auto", "Sprint" + tournamentTeamId, "SP" + tournamentTeamId + uniqueSuffix());
+        createRoster(tournamentTeamId, playerId, 60 + (int) (tournamentTeamId % 30));
+        return tournamentTeamId;
+    }
+
+    private long createPlayer(String firstName, String lastName, String documentNumber) throws Exception {
+        return extractId(mockMvc.perform(post("/players")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "firstName", firstName,
+                                "lastName", lastName,
+                                "documentType", "DNI",
+                                "documentNumber", documentNumber,
+                                "active", true
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn());
+    }
+
+    private long createRoster(long tournamentTeamId, long playerId, int jerseyNumber) throws Exception {
+        return extractId(mockMvc.perform(post("/rosters")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "tournamentTeamId", tournamentTeamId,
+                                "playerId", playerId,
+                                "jerseyNumber", jerseyNumber,
+                                "captain", false,
+                                "positionName", "MID",
+                                "rosterStatus", RosterStatus.ACTIVE.name(),
+                                "startDate", "2026-04-01"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn());
     }
 
     private long createStage(long tournamentId, String name) throws Exception {
-        return extractId(mockMvc.perform(post("/api/tournament-stages")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        return extractId(mockMvc.perform(post("/tournament-stages")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -261,8 +287,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
     }
 
     private long createGroup(long stageId, String code, String name) throws Exception {
-        return extractId(mockMvc.perform(post("/api/stage-groups")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        return extractId(mockMvc.perform(post("/stage-groups")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "stageId", stageId,
@@ -285,8 +311,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
             int homeScore,
             int awayScore
     ) throws Exception {
-        return extractId(mockMvc.perform(post("/api/matches")
-                        .with(httpBasic(USERNAME, PASSWORD))
+        return extractId(mockMvc.perform(post("/matches")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "tournamentId", tournamentId,
@@ -305,8 +331,8 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
     }
 
     private void transitionTournament(long tournamentId, String targetStatus) throws Exception {
-        mockMvc.perform(post("/api/tournaments/{id}/status-transition", tournamentId)
-                        .with(httpBasic(USERNAME, PASSWORD))
+        mockMvc.perform(post("/tournaments/{id}/status-transition", tournamentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("targetStatus", targetStatus))))
                 .andExpect(status().isOk());
@@ -321,3 +347,5 @@ class Sprint3IntegratedFlowTest extends PostgreSqlContainerConfig {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }
+
+

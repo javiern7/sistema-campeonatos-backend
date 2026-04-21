@@ -3,14 +3,17 @@ package com.multideporte.backend.publicportal.service.impl;
 import com.multideporte.backend.common.exception.BusinessException;
 import com.multideporte.backend.common.exception.ResourceNotFoundException;
 import com.multideporte.backend.competition.dto.response.CompetitionAdvancedMatchSummary;
+import com.multideporte.backend.competition.dto.response.CompetitionAdvancedCalendarResponse;
 import com.multideporte.backend.competition.dto.response.CompetitionAdvancedResultsResponse;
 import com.multideporte.backend.competition.dto.response.CompetitionAdvancedTeamSummary;
 import com.multideporte.backend.competition.service.CompetitionAdvancedService;
+import com.multideporte.backend.match.entity.MatchGameStatus;
 import com.multideporte.backend.publicportal.dto.PublicMatchSummaryResponse;
 import com.multideporte.backend.publicportal.dto.PublicPortalHomeResponse;
 import com.multideporte.backend.publicportal.dto.PublicReadModulesResponse;
 import com.multideporte.backend.publicportal.dto.PublicStandingEntryResponse;
 import com.multideporte.backend.publicportal.dto.PublicTeamSummaryResponse;
+import com.multideporte.backend.publicportal.dto.PublicTournamentCalendarResponse;
 import com.multideporte.backend.publicportal.dto.PublicTournamentDetailResponse;
 import com.multideporte.backend.publicportal.dto.PublicTournamentResultsResponse;
 import com.multideporte.backend.publicportal.dto.PublicTournamentStandingsResponse;
@@ -171,6 +174,42 @@ public class PublicPortalServiceImpl implements PublicPortalService {
                 group != null ? group.getName() : null,
                 entries.size(),
                 entries
+        );
+    }
+
+    @Override
+    public PublicTournamentCalendarResponse getTournamentCalendar(
+            String slug,
+            Long stageId,
+            Long groupId,
+            MatchGameStatus status,
+            OffsetDateTime from,
+            OffsetDateTime to
+    ) {
+        Tournament tournament = findVisibleTournamentBySlug(slug);
+        CompetitionAdvancedCalendarResponse calendar = competitionAdvancedService.getCalendar(
+                tournament.getId(),
+                stageId,
+                groupId,
+                status,
+                from,
+                to
+        );
+
+        return new PublicTournamentCalendarResponse(
+                calendar.tournamentId(),
+                tournament.getSlug(),
+                calendar.stageId(),
+                calendar.groupId(),
+                calendar.status(),
+                calendar.from(),
+                calendar.to(),
+                calendar.totalMatches(),
+                calendar.scheduledMatches(),
+                calendar.closedMatches(),
+                calendar.matches().stream()
+                        .map(this::toPublicMatchSummary)
+                        .toList()
         );
     }
 

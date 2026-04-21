@@ -1,5 +1,6 @@
 package com.multideporte.backend.security;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -56,8 +57,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -714,5 +716,83 @@ class SecurityContractWebMvcTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
-}
 
+    @Test
+    void shouldLogoutFormalBearerSession() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                40L,
+                "operator",
+                "",
+                List.of(new SimpleGrantedAuthority(SecurityPermissions.AUTH_SESSION_READ))
+        );
+        when(authTokenService.authenticateAccessToken("logout-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        102L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer logout-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("AUTH_LOGOUT_SUCCESS"))
+                .andExpect(jsonPath("$.message").value("Sesion cerrada correctamente"));
+
+        verify(authTokenService).logoutByAccessToken("logout-token");
+    }
+
+    @Test
+    void shouldExposePagedOperationalAuditEventsWithExplicitPermission() throws Exception {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                26L,
+                "auditor",
+                "",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_TOURNAMENT_ADMIN"),
+                        new SimpleGrantedAuthority(SecurityPermissions.OPERATIONAL_AUDIT_READ)
+                )
+        );
+        when(authTokenService.authenticateAccessToken("audit-page-token")).thenReturn(Optional.of(
+                new AuthenticatedTokenSession(
+                        authenticatedUser,
+                        103L,
+                        OffsetDateTime.parse("2026-04-09T10:15:30Z")
+                )
+        ));
+        when(operationalAuditService.getAuditEvents(
+                org.mockito.ArgumentMatchers.eq("TOURNAMENT_STATUS_TRANSITION"),
+                org.mockito.ArgumentMatchers.eq("TOURNAMENT"),
+                org.mockito.ArgumentMatchers.eq("auditor"),
+                org.mockito.ArgumentMatchers.eq(OperationalAuditResult.SUCCESS),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(new PageImpl<>(
+                List.of(new OperationalAuditEventResponse(
+                        2L,
+                        26L,
+                        "auditor",
+                        "TOURNAMENT_STATUS_TRANSITION",
+                        "TOURNAMENT",
+                        "10",
+                        OffsetDateTime.parse("2026-04-09T10:16:00Z"),
+                        OperationalAuditResult.SUCCESS,
+                        java.util.Map.of("requestPath", "/operations/audit-events")
+                )),
+                PageRequest.of(0, 20),
+                1
+        ));
+
+        mockMvc.perform(get("/operations/audit-events")
+                        .param("action", "TOURNAMENT_STATUS_TRANSITION")
+                        .param("entityType", "TOURNAMENT")
+                        .param("actor", "auditor")
+                        .param("result", "SUCCESS")
+                        .header("Authorization", "Bearer audit-page-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OPERATIONAL_AUDIT_EVENT_PAGE"))
+                .andExpect(jsonPath("$.data.content[0].action").value("TOURNAMENT_STATUS_TRANSITION"))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+}

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.multideporte.backend.publicportal.controller.PublicPortalController;
 import com.multideporte.backend.publicportal.dto.PublicPortalHomeResponse;
 import com.multideporte.backend.publicportal.dto.PublicReadModulesResponse;
+import com.multideporte.backend.publicportal.dto.PublicTournamentCalendarResponse;
 import com.multideporte.backend.publicportal.dto.PublicTournamentDetailResponse;
 import com.multideporte.backend.publicportal.dto.PublicTournamentResultsResponse;
 import com.multideporte.backend.publicportal.dto.PublicTournamentStandingsResponse;
@@ -125,6 +126,9 @@ class PublicPortalSecurityWebMvcTest {
         when(publicPortalService.getTournamentStandings("copa-apertura-2026", null, null)).thenReturn(
                 new PublicTournamentStandingsResponse(10L, "copa-apertura-2026", null, null, null, null, null, null, 0, List.of())
         );
+        when(publicPortalService.getTournamentCalendar("copa-apertura-2026", null, null, null, null, null)).thenReturn(
+                new PublicTournamentCalendarResponse(10L, "copa-apertura-2026", null, null, null, null, null, 0, 0, 0, List.of())
+        );
         when(publicPortalService.getTournamentResults("copa-apertura-2026", null, null)).thenReturn(
                 new PublicTournamentResultsResponse(10L, "copa-apertura-2026", null, null, 0, List.of())
         );
@@ -141,6 +145,10 @@ class PublicPortalSecurityWebMvcTest {
         mockMvc.perform(get("/public/tournaments/copa-apertura-2026/standings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("PUBLIC_TOURNAMENT_STANDINGS_FOUND"));
+
+        mockMvc.perform(get("/public/tournaments/copa-apertura-2026/calendar"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("PUBLIC_TOURNAMENT_CALENDAR_FOUND"));
 
         mockMvc.perform(get("/public/tournaments/copa-apertura-2026/results"))
                 .andExpect(status().isOk())
