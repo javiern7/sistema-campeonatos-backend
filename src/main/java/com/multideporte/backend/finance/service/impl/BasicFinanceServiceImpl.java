@@ -55,11 +55,12 @@ public class BasicFinanceServiceImpl implements BasicFinanceService {
     @Override
     @Transactional
     public FinancialMovementResponse createMovement(Long tournamentId, FinancialMovementCreateRequest request) {
-        validator.validateMovement(tournamentId, request.tournamentTeamId(), request.movementType(), request.category());
+        Long tournamentTeamId = normalizeTournamentTeamId(request.tournamentTeamId());
+        validator.validateMovement(tournamentId, tournamentTeamId, request.movementType(), request.category());
 
         FinancialMovement movement = new FinancialMovement();
         movement.setTournamentId(tournamentId);
-        movement.setTournamentTeamId(request.tournamentTeamId());
+        movement.setTournamentTeamId(tournamentTeamId);
         movement.setMovementType(request.movementType());
         movement.setCategory(request.category());
         movement.setAmount(request.amount());
@@ -79,20 +80,22 @@ public class BasicFinanceServiceImpl implements BasicFinanceService {
             FinancialMovementCategory category,
             Long tournamentTeamId
     ) {
+        Long normalizedTournamentTeamId = normalizeTournamentTeamId(tournamentTeamId);
         validator.requireTournament(tournamentId);
         if (category != null && movementType != null && category.movementType() != movementType) {
             throw new BusinessException("La categoria financiera no corresponde al tipo de movimiento indicado");
         }
-        if (tournamentTeamId != null) {
-            validator.requireTournamentTeamInTournament(tournamentId, tournamentTeamId);
+        if (normalizedTournamentTeamId != null) {
+            validator.requireTournamentTeamInTournament(tournamentId, normalizedTournamentTeamId);
         }
 
-        List<FinancialMovement> movements = loadMovements(tournamentId, movementType, category, tournamentTeamId);
+        List<FinancialMovement> movements = loadMovements(tournamentId, movementType, category, normalizedTournamentTeamId);
         Map<Long, FinancialTeamResponse> teamsByTournamentTeamId = buildTeamsByTournamentTeamId(movements);
         List<FinancialMovementResponse> responses = movements.stream()
                 .filter(movement -> category == null || movement.getCategory() == category)
                 .filter(movement -> movementType == null || movement.getMovementType() == movementType)
-                .filter(movement -> tournamentTeamId == null || Objects.equals(movement.getTournamentTeamId(), tournamentTeamId))
+                .filter(movement -> normalizedTournamentTeamId == null
+                        || Objects.equals(movement.getTournamentTeamId(), normalizedTournamentTeamId))
                 .map(movement -> toMovementResponse(movement, teamsByTournamentTeamId))
                 .toList();
 
@@ -139,6 +142,10 @@ public class BasicFinanceServiceImpl implements BasicFinanceService {
             return financialMovementRepository.findAllByTournamentIdAndMovementTypeOrderByOccurredOnDescIdDesc(tournamentId, movementType);
         }
         return financialMovementRepository.findAllByTournamentIdOrderByOccurredOnDescIdDesc(tournamentId);
+    }
+
+    private Long normalizeTournamentTeamId(Long tournamentTeamId) {
+        return tournamentTeamId == null || tournamentTeamId <= 0 ? null : tournamentTeamId;
     }
 
     private BigDecimal sumByType(List<FinancialMovement> movements, FinancialMovementType movementType) {

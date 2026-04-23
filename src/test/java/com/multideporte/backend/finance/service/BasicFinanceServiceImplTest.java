@@ -98,6 +98,60 @@ class BasicFinanceServiceImplTest {
     }
 
     @Test
+    void shouldTreatZeroTournamentTeamFilterAsTournamentLevelList() {
+        FinancialMovement incomeTournament = movement(
+                2L,
+                10L,
+                null,
+                FinancialMovementType.INCOME,
+                FinancialMovementCategory.PATROCINIO_SIMPLE,
+                "50.00"
+        );
+        when(financialMovementRepository.findAllByTournamentIdOrderByOccurredOnDescIdDesc(10L))
+                .thenReturn(List.of(incomeTournament));
+
+        var response = service.getMovements(10L, null, null, 0L);
+
+        assertEquals(1, response.totalMovements());
+        assertEquals(2L, response.movements().get(0).movementId());
+        verify(validator, never()).requireTournamentTeamInTournament(10L, 0L);
+    }
+
+    @Test
+    void shouldNormalizeZeroTournamentTeamOnCreateAsTournamentLevelMovement() {
+        FinancialMovementCreateRequest request = new FinancialMovementCreateRequest(
+                0L,
+                FinancialMovementType.INCOME,
+                FinancialMovementCategory.PATROCINIO_SIMPLE,
+                new BigDecimal("50.00"),
+                LocalDate.parse("2026-04-09"),
+                "Patrocinio general",
+                "REC-002"
+        );
+        when(currentUserService.requireCurrentUserId()).thenReturn(9L);
+
+        FinancialMovement saved = movement(
+                2L,
+                10L,
+                null,
+                FinancialMovementType.INCOME,
+                FinancialMovementCategory.PATROCINIO_SIMPLE,
+                "50.00"
+        );
+        when(financialMovementRepository.save(any(FinancialMovement.class))).thenReturn(saved);
+
+        var response = service.createMovement(10L, request);
+
+        assertEquals(2L, response.movementId());
+        verify(validator).validateMovement(
+                10L,
+                null,
+                FinancialMovementType.INCOME,
+                FinancialMovementCategory.PATROCINIO_SIMPLE
+        );
+    }
+
+    @Test
     void shouldBuildBasicSummaryTotalsAndBreakdowns() {
         FinancialMovement incomeTeam = movement(
                 1L,
