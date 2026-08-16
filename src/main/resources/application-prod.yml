@@ -1,0 +1,42 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    placeholders:
+      disableLocalSeedUsers: ${APP_DISABLE_LOCAL_SEED_USERS:true}
+
+springdoc:
+  api-docs:
+    enabled: ${APP_OPENAPI_ENABLED:false}
+  swagger-ui:
+    enabled: ${APP_SWAGGER_UI_ENABLED:false}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.multideporte.backend: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+
+app:
+  openapi:
+    public-access-enabled: ${APP_OPENAPI_PUBLIC_ACCESS_ENABLED:false}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
+  permission-governance:
+    write-enabled: ${APP_PERMISSION_GOVERNANCE_WRITE_ENABLED:false}

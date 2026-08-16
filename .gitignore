@@ -43,6 +43,7 @@ application-local.yml
 application-dev.yml
 application-qa.yml
 application-prod.yml
+!src/main/resources/application-prod.yml
 
 ##################################
 # Variables de entorno
