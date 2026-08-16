@@ -13,6 +13,9 @@ Thumbs.db
 *.ipr
 out/
 .idea_modules/
+scripts/
+!scripts/
+!scripts/staging-smoke-test.ps1
 
 ##################################
 # Eclipse / STS (por si acaso)
@@ -51,6 +54,7 @@ application-prod.yml
 .env
 .env.*
 !.env.example
+!.env.*.example
 
 ##################################
 # Docker
