@@ -60,6 +60,12 @@ public class Standing {
     @Column(name = "rank_position")
     private Integer rankPosition;
 
+    @Column(name = "decisive_criterion", length = 40)
+    private String decisiveCriterion;
+
+    @Column(name = "tie_break_draw_id")
+    private Long tieBreakDrawId;
+
     @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp
     private OffsetDateTime updatedAt;

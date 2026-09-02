@@ -40,4 +40,6 @@ public interface TournamentTeamRepository extends JpaRepository<TournamentTeam, 
     long countApprovedTeamsWithActiveRosterSupport(@Param("tournamentId") Long tournamentId);
 
     List<TournamentTeam> findAllByTournamentId(Long tournamentId);
+
+    List<TournamentTeam> findAllByGroupIdOrderByGroupDrawPositionAsc(Long groupId);
 }

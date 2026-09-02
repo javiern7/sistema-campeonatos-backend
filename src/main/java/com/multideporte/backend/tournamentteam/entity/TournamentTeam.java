@@ -38,6 +38,9 @@ public class TournamentTeam {
     @Column(name = "group_draw_position")
     private Integer groupDrawPosition;
 
+    @Column(name = "group_id")
+    private Long groupId;
+
     @Column(name = "joined_at", nullable = false)
     private OffsetDateTime joinedAt;
 }

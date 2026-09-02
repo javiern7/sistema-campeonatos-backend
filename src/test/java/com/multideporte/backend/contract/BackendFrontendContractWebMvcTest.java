@@ -167,13 +167,13 @@ class BackendFrontendContractWebMvcTest {
                 ));
         when(matchGameService.getAll(eq(1L), eq(2L), eq(3L), eq(MatchGameStatus.SCHEDULED), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new MatchGameResponse(7L, 1L, 2L, 3L, 1, 1, 10L, 11L, now, "Cancha 1", MatchGameStatus.SCHEDULED, null, null, null, null, now, now)),
+                        List.of(new MatchGameResponse(7L, 1L, 2L, 3L, 1, 1, 10L, 11L, now, "Cancha 1", MatchGameStatus.SCHEDULED, null, null, null, null, null, null, null, null, null, null, null, null, null, now, now)),
                         PageRequest.of(0, 20, Sort.by("roundNumber", "matchdayNumber", "id")),
                         1
                 ));
         when(standingService.getAll(eq(1L), eq(2L), eq(3L), eq(4L), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new StandingResponse(8L, 1L, 2L, 3L, 4L, 1, 1, 0, 0, 2, 0, 2, 3, 1, now)),
+                        List.of(new StandingResponse(8L, 1L, 2L, 3L, 4L, 1, 1, 0, 0, 2, 0, 2, 3, 1, null, null, now)),
                         PageRequest.of(0, 20, Sort.by("rankPosition")),
                         1
                 ));
@@ -226,13 +226,13 @@ class BackendFrontendContractWebMvcTest {
         OffsetDateTime now = OffsetDateTime.parse("2026-04-11T10:00:00Z");
         when(tournamentTeamService.getAll(eq(null), eq(null), eq(null), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new TournamentTeamResponse(9L, 1L, 2L, TournamentTeamRegistrationStatus.APPROVED, 1, 1, now)),
+                        List.of(new TournamentTeamResponse(9L, 1L, 2L, TournamentTeamRegistrationStatus.APPROVED, 1, 1, null, now)),
                         PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "joinedAt")),
                         1
                 ));
         when(standingService.getAll(eq(null), eq(null), eq(null), eq(null), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(new PageImpl<>(
-                        List.of(new StandingResponse(10L, 1L, null, null, 9L, 0, 0, 0, 0, 0, 0, 0, 0, null, now)),
+                        List.of(new StandingResponse(10L, 1L, null, null, 9L, 0, 0, 0, 0, 0, 0, 0, 0, null, null, null, now)),
                         PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "updatedAt")),
                         1
                 ));

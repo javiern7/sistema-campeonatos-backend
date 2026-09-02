@@ -244,7 +244,7 @@ public class MatchGameValidator {
             throw new BusinessException("Un partido SCHEDULED no debe tener scores ni ganador");
         }
 
-        if (status == MatchGameStatus.PLAYED) {
+        if (status == MatchGameStatus.PLAYED && (stage == null || stage.getStageType() != TournamentStageType.KNOCKOUT)) {
             validateWinnerConsistency(homeTournamentTeamId, awayTournamentTeamId, homeScore, awayScore, winnerTournamentTeamId);
         }
 
@@ -275,7 +275,7 @@ public class MatchGameValidator {
                 return;
             }
             if (homeScore.equals(awayScore)) {
-                throw new BusinessException("Un partido KNOCKOUT no puede terminar empatado");
+                return;
             }
             if (winnerTournamentTeamId == null) {
                 throw new BusinessException("Un partido KNOCKOUT cerrado requiere winnerTournamentTeamId");

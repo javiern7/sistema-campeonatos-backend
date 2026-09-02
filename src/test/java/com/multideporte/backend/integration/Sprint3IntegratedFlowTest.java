@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.match.entity.MatchPurpose;
+import com.multideporte.backend.match.repository.MatchGameRepository;
 import com.multideporte.backend.roster.entity.RosterStatus;
 import com.multideporte.backend.stage.entity.TournamentStageType;
 import com.multideporte.backend.support.AuthenticatedPostgreSqlIntegrationTestSupport;
@@ -34,6 +36,25 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles("local")
 class Sprint3IntegratedFlowTest extends AuthenticatedPostgreSqlIntegrationTestSupport {
 
+    @Autowired private MatchGameRepository matchGameRepository;
+
+    @Test
+    void shouldCompleteP56SixteenMatchFlowOnPostgres() throws Exception {
+        String s = uniqueSuffix(); long tournamentId=createTournament("P56 "+s,"2026-"+s,TournamentFormat.GROUPS_THEN_KNOCKOUT);
+        long groupStage=createStage(tournamentId,"Grupos "+s); long a=createGroup(groupStage,"A","A",1); long b=createGroup(groupStage,"B","B",2);
+        long knockout=extractId(mockMvc.perform(post("/tournament-stages").header(HttpHeaders.AUTHORIZATION,bearerToken(adminAccessToken())).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("tournamentId",tournamentId,"name","KO "+s,"stageType","KNOCKOUT","sequenceOrder",2,"legs",1,"roundTrip",false,"active",false)))).andExpect(status().isCreated()).andReturn());
+        long[] teams=new long[8]; for(int i=0;i<8;i++){ long team=createTeam("P56 Team "+i+s,"P"+i+s,"#112233"); teams[i]=createTournamentTeam(tournamentId,team,i+1,i%4+1); }
+        transitionTournament(tournamentId,"OPEN"); transitionTournament(tournamentId,"IN_PROGRESS"); int[][] pairs={{0,1},{2,3},{0,2},{1,3},{0,3},{1,2}};
+        for(int i=0;i<6;i++){createMatch(tournamentId,groupStage,a,1,i+1,teams[pairs[i][0]],teams[pairs[i][1]],2,0);createMatch(tournamentId,groupStage,b,1,i+1,teams[4+pairs[i][0]],teams[4+pairs[i][1]],2,0);} recalculate(tournamentId,groupStage,a); recalculate(tournamentId,groupStage,b);
+        mockMvc.perform(post("/tournaments/{id}/p56/group-stages/{g}/knockout-stages/{k}/semifinals",tournamentId,groupStage,knockout).header(HttpHeaders.AUTHORIZATION,bearerToken(adminAccessToken()))).andExpect(status().isOk());
+        var semis=matchGameRepository.findAllByStageIdAndMatchPurpose(knockout,MatchPurpose.SEMIFINAL); for(var m:semis){m.setStatus(MatchGameStatus.PLAYED);m.setHomeScore(1);m.setAwayScore(0);m.setWinnerTournamentTeamId(m.getHomeTournamentTeamId());} matchGameRepository.saveAll(semis);
+        mockMvc.perform(post("/tournaments/{id}/p56/knockout-stages/{k}/final-round",tournamentId,knockout).header(HttpHeaders.AUTHORIZATION,bearerToken(adminAccessToken()))).andExpect(status().isOk());
+        var finals=matchGameRepository.findAllByStageIdAndMatchPurpose(knockout,MatchPurpose.FINAL); finals.addAll(matchGameRepository.findAllByStageIdAndMatchPurpose(knockout,MatchPurpose.THIRD_PLACE)); for(var m:finals){m.setStatus(MatchGameStatus.PLAYED);m.setHomeScore(1);m.setAwayScore(0);m.setWinnerTournamentTeamId(m.getHomeTournamentTeamId());} matchGameRepository.saveAll(finals);
+        mockMvc.perform(get("/tournaments/{id}/p56/knockout-stages/{k}/final-classification",tournamentId,knockout).header(HttpHeaders.AUTHORIZATION,bearerToken(adminAccessToken()))).andExpect(status().isOk()).andExpect(jsonPath("$.data.entries.length()").value(4));
+        org.junit.jupiter.api.Assertions.assertEquals(16,matchGameRepository.findAllByTournamentIdOrderByScheduledAtAscIdAsc(tournamentId).size());
+    }
+
+    private void recalculate(long tournamentId,long stageId,long groupId) throws Exception { mockMvc.perform(post("/standings/recalculate").header(HttpHeaders.AUTHORIZATION,bearerToken(adminAccessToken())).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("tournamentId",tournamentId,"stageId",stageId,"groupId",groupId)))).andExpect(status().isOk()); }
     @Test
     void shouldExecuteIntegratedFlowAndGenerateStableStandings() throws Exception {
         String suffix = uniqueSuffix();
@@ -177,11 +198,15 @@ class Sprint3IntegratedFlowTest extends AuthenticatedPostgreSqlIntegrationTestSu
     }
 
     private long createTournament(String name, String seasonName) throws Exception {
+        return createTournament(name, seasonName, TournamentFormat.LEAGUE);
+    }
+
+    private long createTournament(String name, String seasonName, TournamentFormat format) throws Exception {
         TournamentCreateRequest request = new TournamentCreateRequest(
                 1L,
                 name,
                 seasonName,
-                TournamentFormat.LEAGUE,
+                format,
                 TournamentStatus.DRAFT,
                 null,
                 "Flujo integrado Sprint 3",
@@ -287,6 +312,10 @@ class Sprint3IntegratedFlowTest extends AuthenticatedPostgreSqlIntegrationTestSu
     }
 
     private long createGroup(long stageId, String code, String name) throws Exception {
+        return createGroup(stageId, code, name, 1);
+    }
+
+    private long createGroup(long stageId, String code, String name, int sequenceOrder) throws Exception {
         return extractId(mockMvc.perform(post("/stage-groups")
                         .header(HttpHeaders.AUTHORIZATION, bearerToken(adminAccessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -294,7 +323,7 @@ class Sprint3IntegratedFlowTest extends AuthenticatedPostgreSqlIntegrationTestSu
                                 "stageId", stageId,
                                 "code", code,
                                 "name", name,
-                                "sequenceOrder", 1
+                                "sequenceOrder", sequenceOrder
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn());

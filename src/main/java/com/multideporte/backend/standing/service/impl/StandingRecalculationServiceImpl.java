@@ -10,6 +10,8 @@ import com.multideporte.backend.standing.dto.request.StandingRecalculateRequest;
 import com.multideporte.backend.standing.dto.response.StandingRecalculationResponse;
 import com.multideporte.backend.standing.entity.Standing;
 import com.multideporte.backend.standing.repository.StandingRepository;
+import com.multideporte.backend.standing.service.P56StandingOrderService;
+import com.multideporte.backend.standing.tiebreak.repository.StandingTieBreakDrawRepository;
 import com.multideporte.backend.standing.service.StandingRecalculationService;
 import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stage.repository.TournamentStageRepository;
@@ -40,6 +42,8 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
     private final TeamPlayerRosterRepository teamPlayerRosterRepository;
     private final StandingRepository standingRepository;
     private final TournamentStageProgressionService tournamentStageProgressionService;
+    private final P56StandingOrderService p56StandingOrderService;
+    private final StandingTieBreakDrawRepository tieBreakDrawRepository;
 
     @Override
     public StandingRecalculationResponse recalculate(StandingRecalculateRequest request) {
@@ -221,12 +225,13 @@ public class StandingRecalculationServiceImpl implements StandingRecalculationSe
     }
 
     private List<Standing> buildStandings(StandingRecalculateRequest request, Map<Long, StandingAccumulator> table) {
-        List<StandingAccumulator> ordered = new ArrayList<>(table.values());
-        ordered.sort(Comparator
-                .comparingInt(StandingAccumulator::points).reversed()
-                .thenComparing(Comparator.comparingInt(StandingAccumulator::scoreDiff).reversed())
-                .thenComparing(Comparator.comparingInt(StandingAccumulator::pointsFor).reversed())
-                .thenComparingLong(StandingAccumulator::teamId));
+        List<Long> orderedTeamIds = tieBreakDrawRepository.findTopByTournamentIdAndStageIdAndGroupIdOrderByRecordedAtDesc(request.tournamentId(), request.stageId(), request.groupId())
+                .map(draw -> draw.getResultingOrderTeamIds().stream().filter(table::containsKey).toList())
+                .filter(order -> order.size() == table.size())
+                .orElseGet(() -> p56StandingOrderService.order(new ArrayList<>(table.keySet()), loadMatches(request)));
+        List<StandingAccumulator> ordered = orderedTeamIds.stream()
+                .map(table::get)
+                .toList();
 
         List<Standing> standings = new ArrayList<>();
         for (int i = 0; i < ordered.size(); i++) {

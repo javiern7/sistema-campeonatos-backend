@@ -17,6 +17,8 @@ public record StandingResponse(
         Integer scoreDiff,
         Integer points,
         Integer rankPosition,
+        String decisiveCriterion,
+        Long tieBreakDrawId,
         OffsetDateTime updatedAt
 ) {
 }

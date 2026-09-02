@@ -13,6 +13,8 @@ import com.multideporte.backend.roster.repository.TeamPlayerRosterRepository;
 import com.multideporte.backend.standing.dto.request.StandingRecalculateRequest;
 import com.multideporte.backend.standing.dto.response.StandingRecalculationResponse;
 import com.multideporte.backend.standing.repository.StandingRepository;
+import com.multideporte.backend.standing.service.P56StandingOrderService;
+import com.multideporte.backend.standing.tiebreak.repository.StandingTieBreakDrawRepository;
 import com.multideporte.backend.standing.service.impl.StandingRecalculationServiceImpl;
 import com.multideporte.backend.stage.entity.TournamentStage;
 import com.multideporte.backend.stagegroup.entity.StageGroup;
@@ -28,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +56,12 @@ class StandingRecalculationServiceTest {
 
     @Mock
     private TournamentStageProgressionService tournamentStageProgressionService;
+
+    @Spy
+    private P56StandingOrderService p56StandingOrderService;
+
+    @Mock
+    private StandingTieBreakDrawRepository tieBreakDrawRepository;
 
     @InjectMocks
     private StandingRecalculationServiceImpl standingRecalculationService;

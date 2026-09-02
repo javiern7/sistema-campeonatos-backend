@@ -80,4 +80,8 @@ public interface MatchGameRepository extends JpaRepository<MatchGame, Long>, Jpa
     );
 
     List<MatchGame> findAllByTournamentIdOrderByScheduledAtAscIdAsc(Long tournamentId);
+
+    List<MatchGame> findAllByStageIdAndMatchPurpose(Long stageId, com.multideporte.backend.match.entity.MatchPurpose matchPurpose);
+
+    boolean existsByHomeSourceMatchIdOrAwaySourceMatchId(Long homeSourceMatchId, Long awaySourceMatchId);
 }

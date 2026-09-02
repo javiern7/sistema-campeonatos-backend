@@ -10,6 +10,7 @@ public record TournamentTeamResponse(
         TournamentTeamRegistrationStatus registrationStatus,
         Integer seedNumber,
         Integer groupDrawPosition,
+        Long groupId,
         OffsetDateTime joinedAt
 ) {
 }

@@ -61,6 +61,37 @@ public class MatchGame {
     @Column(name = "away_score")
     private Integer awayScore;
 
+    @Column(name = "home_penalty_score")
+    private Integer homePenaltyScore;
+
+    @Column(name = "away_penalty_score")
+    private Integer awayPenaltyScore;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "resolution_method", length = 20)
+    private MatchResolutionMethod resolutionMethod;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "match_purpose", length = 20)
+    private MatchPurpose matchPurpose;
+
+    @Column(name = "bracket_position")
+    private Integer bracketPosition;
+
+    @Column(name = "home_source_match_id")
+    private Long homeSourceMatchId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "home_source_outcome", length = 10)
+    private MatchSourceOutcome homeSourceOutcome;
+
+    @Column(name = "away_source_match_id")
+    private Long awaySourceMatchId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "away_source_outcome", length = 10)
+    private MatchSourceOutcome awaySourceOutcome;
+
     @Column(name = "winner_tournament_team_id")
     private Long winnerTournamentTeamId;
 

@@ -1,6 +1,7 @@
 package com.multideporte.backend.match.dto.request;
 
 import com.multideporte.backend.match.entity.MatchGameStatus;
+import com.multideporte.backend.match.entity.MatchResolutionMethod;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -32,6 +33,9 @@ public record MatchGameUpdateRequest(
 
         Integer homeScore,
         Integer awayScore,
+        Integer homePenaltyScore,
+        Integer awayPenaltyScore,
+        MatchResolutionMethod resolutionMethod,
         Long winnerTournamentTeamId,
         String notes
 ) {

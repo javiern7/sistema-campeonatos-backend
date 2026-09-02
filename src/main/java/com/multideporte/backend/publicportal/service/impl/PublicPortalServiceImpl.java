@@ -34,6 +34,9 @@ import com.multideporte.backend.tournament.entity.TournamentOperationalCategory;
 import com.multideporte.backend.tournament.entity.TournamentStatus;
 import com.multideporte.backend.tournament.repository.TournamentRepository;
 import com.multideporte.backend.tournament.repository.TournamentSpecifications;
+import com.multideporte.backend.tournamentpublication.entity.TournamentPublication;
+import com.multideporte.backend.tournamentpublication.entity.TournamentPublicationStatus;
+import com.multideporte.backend.tournamentpublication.repository.TournamentPublicationRepository;
 import com.multideporte.backend.tournamentteam.entity.TournamentTeam;
 import com.multideporte.backend.tournamentteam.repository.TournamentTeamRepository;
 import java.time.OffsetDateTime;
@@ -73,6 +76,7 @@ public class PublicPortalServiceImpl implements PublicPortalService {
     private final TournamentTeamRepository tournamentTeamRepository;
     private final TeamRepository teamRepository;
     private final CompetitionAdvancedService competitionAdvancedService;
+    private final TournamentPublicationRepository publicationRepository;
 
     @Override
     public PublicPortalHomeResponse getHome() {
@@ -237,7 +241,14 @@ public class PublicPortalServiceImpl implements PublicPortalService {
 
     private Specification<Tournament> publicVisibilitySpecification(String name, Long sportId, TournamentStatus status) {
         return TournamentSpecifications.byFilters(name, sportId, status, TournamentOperationalCategory.PRODUCTION, true)
-                .and((root, query, builder) -> root.get("status").in(PUBLIC_TOURNAMENT_STATUSES));
+                .and((root, query, builder) -> root.get("status").in(PUBLIC_TOURNAMENT_STATUSES))
+                .and((root, query, builder) -> {
+                    var publication = query.subquery(TournamentPublication.class);
+                    var publicationRoot = publication.from(TournamentPublication.class);
+                    publication.select(publicationRoot);
+                    publication.where(builder.equal(publicationRoot.get("tournamentId"), root.get("id")));
+                    return builder.not(builder.exists(publication));
+                });
     }
 
     private Tournament findVisibleTournamentBySlug(String slug) {
@@ -251,6 +262,10 @@ public class PublicPortalServiceImpl implements PublicPortalService {
     }
 
     private boolean isPubliclyVisible(Tournament tournament) {
+        var publication = publicationRepository.findById(tournament.getId());
+        if (publication.isPresent()) {
+            return publication.get().getPublicationStatus() == TournamentPublicationStatus.PUBLISHED;
+        }
         return tournament.getOperationalCategory() == TournamentOperationalCategory.PRODUCTION
                 && PUBLIC_TOURNAMENT_STATUSES.contains(tournament.getStatus());
     }
